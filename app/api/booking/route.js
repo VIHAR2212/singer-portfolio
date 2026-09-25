@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase";
+export const runtime = 'edge';
 
 // Basic per-instance rate limit: 5 submissions per IP per 10 minutes.
 const hits = new Map();

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { getAdminClient } from '@/lib/supabase';
+export const runtime = 'edge';
 
 export async function POST(req) {
   try {
@@ -11,26 +11,24 @@ export async function POST(req) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const originalName = file.name || 'image.png';
+    const ext = originalName.includes('.') ? originalName.split('.').pop() : 'png';
+    const baseName = originalName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `${baseName}_${Date.now()}.${ext}`;
 
-    // Target upload directory in public/uploads
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    const supabase = getAdminClient();
+    const { error } = await supabase.storage
+      .from('uploads')
+      .upload(fileName, file, { contentType: file.type, upsert: false });
+
+    if (error) {
+      console.error('Supabase upload error:', error.message);
+      return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 });
     }
 
-    // Clean filename
-    const originalName = file.name || 'image.png';
-    const ext = path.extname(originalName) || '.png';
-    const baseName = path.basename(originalName, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `${baseName}_${Date.now()}${ext}`;
-    const filePath = path.join(uploadDir, fileName);
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
 
-    fs.writeFileSync(filePath, buffer);
-
-    const publicUrl = `/uploads/${fileName}`;
-    return NextResponse.json({ success: true, url: publicUrl, fileName });
+    return NextResponse.json({ success: true, url: publicUrlData.publicUrl, fileName });
   } catch (err) {
     console.error('File upload error:', err);
     return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 });

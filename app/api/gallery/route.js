@@ -1,57 +1,31 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { getAdminClient } from '@/lib/supabase';
+export const runtime = 'edge';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'gallery.json');
-
-function readGallery() {
-  try {
-    if (!fs.existsSync(dataFilePath)) {
-      return [];
-    }
-    const data = fs.readFileSync(dataFilePath, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    console.error('Error reading gallery.json:', err);
-    return [];
-  }
-}
-
-function writeGallery(items) {
-  try {
-    const dir = path.dirname(dataFilePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(dataFilePath, JSON.stringify(items, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    console.error('Error writing gallery.json:', err);
-    return false;
-  }
-}
-
-// GET /api/gallery - Fetch all gallery items
 export async function GET() {
-  const items = readGallery();
-  return NextResponse.json({ success: true, items });
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from('gallery')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true, items: data });
 }
 
-// POST /api/gallery - Add new gallery item
 export async function POST(req) {
   try {
     const body = await req.json();
     const { title, category, designation, quote, image } = body;
 
     if (!title || !image) {
-      return NextResponse.json(
-        { error: 'Title and image are required.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Title and image are required.' }, { status: 400 });
     }
 
-    const items = readGallery();
-    const newNumber = String(items.length + 1).padStart(2, '0');
+    const supabase = getAdminClient();
+    const { count } = await supabase.from('gallery').select('*', { count: 'exact', head: true });
+    const newNumber = String((count || 0) + 1).padStart(2, '0');
+
     const newItem = {
       id: String(Date.now()),
       number: newNumber,
@@ -59,12 +33,11 @@ export async function POST(req) {
       category: category || 'Navratri',
       designation: designation || 'Live Festive Performance',
       quote: quote || '',
-      image: image.trim(),
-      createdAt: new Date().toISOString()
+      image: image.trim()
     };
 
-    items.push(newItem);
-    writeGallery(items);
+    const { error } = await supabase.from('gallery').insert(newItem);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({ success: true, item: newItem }, { status: 201 });
   } catch (err) {
@@ -72,15 +45,16 @@ export async function POST(req) {
   }
 }
 
-// PUT /api/gallery - Update an existing gallery item
 export async function PUT(req) {
   try {
     const body = await req.json();
     const { id, title, category, designation, quote, image, items: newOrderedItems } = body;
+    const supabase = getAdminClient();
 
-    // Handle batch reorder if provided
     if (newOrderedItems && Array.isArray(newOrderedItems)) {
-      writeGallery(newOrderedItems);
+      for (const item of newOrderedItems) {
+        await supabase.from('gallery').update(item).eq('id', item.id);
+      }
       return NextResponse.json({ success: true, items: newOrderedItems });
     }
 
@@ -88,51 +62,44 @@ export async function PUT(req) {
       return NextResponse.json({ error: 'Item ID is required.' }, { status: 400 });
     }
 
-    const items = readGallery();
-    const index = items.findIndex((it) => String(it.id) === String(id));
+    const updates = { updated_at: new Date().toISOString() };
+    if (title !== undefined) updates.title = title.trim();
+    if (category !== undefined) updates.category = category;
+    if (designation !== undefined) updates.designation = designation;
+    if (quote !== undefined) updates.quote = quote;
+    if (image !== undefined) updates.image = image.trim();
 
-    if (index === -1) {
-      return NextResponse.json({ error: 'Item not found.' }, { status: 404 });
-    }
+    const { data, error } = await supabase
+      .from('gallery')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-    items[index] = {
-      ...items[index],
-      title: title !== undefined ? title.trim() : items[index].title,
-      category: category !== undefined ? category : items[index].category,
-      designation: designation !== undefined ? designation : items[index].designation,
-      quote: quote !== undefined ? quote : items[index].quote,
-      image: image !== undefined ? image.trim() : items[index].image,
-      updatedAt: new Date().toISOString()
-    };
-
-    writeGallery(items);
-    return NextResponse.json({ success: true, item: items[index] });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, item: data });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to update gallery item' }, { status: 500 });
   }
 }
 
-// DELETE /api/gallery - Delete a gallery item
 export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Item ID is required' }, { status: 400 });
 
-    if (!id) {
-      return NextResponse.json({ error: 'Item ID is required' }, { status: 400 });
+    const supabase = getAdminClient();
+    await supabase.from('gallery').delete().eq('id', id);
+
+    const { data: items } = await supabase.from('gallery').select('*').order('created_at', { ascending: true });
+    const reindexed = (items || []).map((it, idx) => ({ ...it, number: String(idx + 1).padStart(2, '0') }));
+
+    for (const it of reindexed) {
+      await supabase.from('gallery').update({ number: it.number }).eq('id', it.id);
     }
 
-    let items = readGallery();
-    items = items.filter((it) => String(it.id) !== String(id));
-
-    // Re-index item numbers
-    items = items.map((it, idx) => ({
-      ...it,
-      number: String(idx + 1).padStart(2, '0')
-    }));
-
-    writeGallery(items);
-    return NextResponse.json({ success: true, items });
+    return NextResponse.json({ success: true, items: reindexed });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to delete gallery item' }, { status: 500 });
   }
