@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "number": "01",
+    "title": "Navratri Raas Stage",
+    "category": "Navratri",
+    "designation": "Live Festive Performance",
+    "quote": "Energetic traditional Garba and folk melodies bringing thousands of dancers together under the festive night sky.",
+    "image": "/gallery-item-1.png",
+    "createdAt": "2026-09-20T10:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "number": "02",
+    "title": "Classical Baithak",
+    "category": "Classical",
+    "designation": "Traditional Sangeet Sabha",
+    "quote": "An intimate evening of classical ragas and soulful melodies, performed with years of dedicated riyaz.",
+    "image": "/gallery-item-2.png",
+    "createdAt": "2026-09-21T11:00:00.000Z"
+  },
+  {
+    "id": "3",
+    "number": "03",
+    "title": "Wedding Recital",
+    "category": "Royal Wedding",
+    "designation": "Family Wedding & Sangeet",
+    "quote": "Heartfelt traditional songs and melodious wedding tunes celebrating precious family milestones.",
+    "image": "/gallery-item-3.png",
+    "createdAt": "2026-09-22T12:00:00.000Z"
+  },
+  {
+    "id": "4",
+    "number": "04",
+    "title": "Devotional Bhajan Sandhya",
+    "category": "Devotional",
+    "designation": "Soulful Bhajans & Prayers",
+    "quote": "Peaceful devotional bhajans that create a calm, sacred, and uplifted atmosphere in the hall.",
+    "image": "/gallery-item-4.png",
+    "createdAt": "2026-09-23T14:00:00.000Z"
+  },
+  {
+    "id": "5",
+    "number": "05",
+    "title": "Auditorium Musical Ensemble",
+    "category": "Classical",
+    "designation": "Live Stage Concert",
+    "quote": "Accompanied by skilled traditional musicians on tabla, harmonium, and acoustic instruments.",
+    "image": "/gallery-item-5.png",
+    "createdAt": "2026-09-24T15:00:00.000Z"
+  },
+  {
+    "id": "6",
+    "number": "06",
+    "title": "Festival Concert Stage",
+    "category": "Navratri",
+    "designation": "Community Celebration",
+    "quote": "Singing beloved Gujarati and Hindi melodies that bring joy and smiles across generations.",
+    "image": "/gallery-item-6.png",
+    "createdAt": "2026-09-25T16:00:00.000Z"
+  }
+]

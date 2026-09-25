@@ -1,0 +1,38 @@
+[
+  {
+    "id": "SM-7821-2026",
+    "createdAt": "2026-09-25T14:30:00.000Z",
+    "name": "Kiritbhai Shah",
+    "phone": "+91 98250 12345",
+    "email": "kirit.shah@gmail.com",
+    "eventType": "Navratri & Garba Night",
+    "eventDate": "2026-10-18",
+    "city": "Ahmedabad, Gujarat",
+    "message": "We are organizing our community Sharad Purnima Garba Mahotsav for 2,500 people. We would love to book Sonalji for a 3-hour traditional Garba and Raas performance.",
+    "status": "new"
+  },
+  {
+    "id": "SM-4592-2026",
+    "createdAt": "2026-09-24T09:15:00.000Z",
+    "name": "Dr. Ananya Trivedi",
+    "phone": "+91 97129 88410",
+    "email": "ananya.trivedi@yahoo.com",
+    "eventType": "Devotional & Bhajan Sandhya",
+    "eventDate": "2026-11-05",
+    "city": "Vadodara, Gujarat",
+    "message": "Inviting Sonalji for a morning Bhajan Sandhya for our family temple inauguration ceremony. Approx 200 guests. Please let us know availability.",
+    "status": "contacted"
+  },
+  {
+    "id": "SM-3184-2026",
+    "createdAt": "2026-09-22T16:45:00.000Z",
+    "name": "Mehul & Riddhi Parikh",
+    "phone": "+91 99099 54321",
+    "email": "mehulparikh@outlook.com",
+    "eventType": "Wedding & Sangeet",
+    "eventDate": "2026-12-14",
+    "city": "Udaipur, Rajasthan",
+    "message": "Royal Destination Wedding Sangeet Sandhya. Looking for traditional Gujarati Lagna Geet followed by golden Bollywood classics for the family.",
+    "status": "confirmed"
+  }
+]
