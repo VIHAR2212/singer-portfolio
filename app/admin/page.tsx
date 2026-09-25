@@ -22,19 +22,15 @@ import {
   Eye, 
   ArrowUp, 
   ArrowDown, 
-  Sparkles, 
   AlertCircle, 
   Sliders, 
   Music, 
   Image as ImageIcon, 
   Download, 
   CheckCircle2, 
-  Share2, 
-  Clock, 
   Play, 
-  Copy,
-  ChevronRight,
-  UserCheck
+  Key,
+  Layers
 } from 'lucide-react';
 
 interface Inquiry {
@@ -97,7 +93,6 @@ export default function AdminPage() {
   const [passcodeError, setPasscodeError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [sessionTimer, setSessionTimer] = useState<string>('24:00:00');
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'inquiries' | 'gallery' | 'video' | 'song' | 'security'>('inquiries');
@@ -210,7 +205,7 @@ export default function AdminPage() {
       if (res.ok && data.success) {
         setIsAuthenticated(true);
         setPasscode('');
-        showToast('Z+ Security Verification Successful.');
+        showToast('Security verification successful.');
       } else {
         setPasscodeError(data.error || 'Authentication failed. Please verify passcode.');
       }
@@ -326,7 +321,7 @@ export default function AdminPage() {
 
   // Delete inquiry
   const handleDeleteInquiry = async (id: string) => {
-    if (!confirm('Are you sure you want to permanently delete this organizer inquiry?')) return;
+    if (!confirm('Are you sure you want to delete this organizer inquiry?')) return;
     try {
       const res = await fetch(`/api/inquiries?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -497,7 +492,6 @@ export default function AdminPage() {
 
   const openEditModal = (item: GalleryItem) => {
     setEditingItem(item);
-    // Parse existing objectPosition like 'center 25%'
     let initialFocal = 20;
     if (item.objectPosition) {
       const match = item.objectPosition.match(/(\d+)%/);
@@ -566,36 +560,28 @@ export default function AdminPage() {
   const contactedCount = inquiries.filter(i => i.status === 'contacted').length;
   const confirmedCount = inquiries.filter(i => i.status === 'confirmed').length;
 
-  // Unauthenticated Z+ Security Login Screen
+  // Unauthenticated Minimalist Dark Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#070504] text-[#F5EBDD] flex items-center justify-center p-4 sm:p-6 font-['Outfit',sans-serif]">
-        <div className="w-full max-w-md p-8 sm:p-10 rounded-2xl bg-[#120F0C] border border-[#E5BE7A]/30 shadow-[0_0_80px_rgba(0,0,0,0.9)] relative overflow-hidden">
+      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex items-center justify-center p-4 sm:p-6 font-sans">
+        <div className="w-full max-w-sm p-8 rounded-xl bg-[#121215] border border-zinc-800 shadow-2xl relative">
           
-          {/* Gold Decorative Beam */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-[#E5BE7A] to-transparent" />
-          
-          {/* Security Shield Header */}
-          <div className="text-center space-y-3 mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#E5BE7A]/10 border border-[#E5BE7A]/40 text-[#E5BE7A] mb-2 shadow-inner">
-              <ShieldCheck className="w-8 h-8" />
+          {/* Header */}
+          <div className="text-center space-y-2 mb-6">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-zinc-200 mb-1">
+              <Lock className="w-5 h-5" />
             </div>
-            <div>
-              <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[#E5BE7A] font-semibold bg-[#E5BE7A]/10 px-3 py-1 rounded-full border border-[#E5BE7A]/20">
-                Z+ SECURE ACCESS
-              </span>
-            </div>
-            <h1 className="font-serif text-3xl font-normal text-[#F5EBDD] pt-2">
-              Sonal Makwana
+            <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">
+              Sonal Makwana Admin
             </h1>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#A39888]">
-              Executive Artist Portal
+            <p className="text-xs text-zinc-400">
+              Enter your master passcode to access the control panel
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-300 block">
                 Security Passcode
               </label>
               <div className="relative">
@@ -603,21 +589,21 @@ export default function AdminPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Enter administrative master key..."
-                  className="w-full px-4 py-3.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] focus:outline-none rounded-lg text-sm text-[#F5EBDD] font-mono tracking-wider pr-12 transition-colors placeholder:text-white/20"
+                  placeholder="Enter passcode..."
+                  className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 placeholder:text-zinc-600 transition-colors pr-10"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#E5BE7A] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
                   <Eye className="w-4 h-4" />
                 </button>
               </div>
 
               {passcodeError && (
-                <div className="flex items-center gap-2 text-rose-400 text-xs mt-2 bg-rose-950/40 p-2.5 rounded border border-rose-800/50">
+                <div className="flex items-center gap-2 text-rose-400 text-xs mt-2 bg-rose-950/30 p-2.5 rounded-lg border border-rose-900/50">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{passcodeError}</span>
                 </div>
@@ -627,90 +613,80 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={isVerifying}
-              className="w-full py-3.5 bg-gradient-to-r from-[#D4AF37] via-[#E5BE7A] to-[#C89B56] hover:brightness-110 active:scale-[0.99] text-[#090807] font-semibold text-xs sm:text-sm uppercase tracking-[0.2em] rounded-lg transition-all duration-300 flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+              className="w-full py-2.5 bg-white hover:bg-zinc-200 active:scale-[0.98] text-zinc-950 font-medium text-sm rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
             >
               {isVerifying ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <RefreshCw className="w-4 h-4 animate-spin text-zinc-950" />
                   <span>Authenticating...</span>
                 </>
               ) : (
-                <>
-                  <Lock className="w-4 h-4" />
-                  <span>Verify Identity & Enter</span>
-                </>
+                <span>Sign In to Dashboard</span>
               )}
             </button>
           </form>
 
-          {/* Security Features HUD */}
-          <div className="mt-8 pt-6 border-t border-white/10 space-y-2 text-[11px] font-mono text-[#8C8072]">
-            <div className="flex items-center justify-between">
-              <span>Encryption</span>
-              <span className="text-emerald-400 font-semibold">WebCrypto HMAC-256</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Brute-force Shield</span>
-              <span className="text-emerald-400 font-semibold">Active (5 Attempts)</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Session Storage</span>
-              <span className="text-emerald-400 font-semibold">HttpOnly Strict Cookie</span>
-            </div>
+          {/* Security Status */}
+          <div className="mt-6 pt-5 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Encrypted Server Session
+            </span>
+            <span>Rate-limiting Active</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // Authenticated Main Admin Dashboard
+  // Modern Clean Dark Executive Dashboard
   return (
-    <div className="min-h-screen bg-[#070504] text-[#F5EBDD] font-['Outfit',sans-serif]">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 selection:text-zinc-100">
       
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-5 py-3 bg-[#1A1612] border border-[#E5BE7A] text-[#F5EBDD] rounded-lg shadow-2xl text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-top-4 duration-300">
-          <CheckCircle2 className="w-4 h-4 text-[#E5BE7A]" />
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg shadow-xl text-xs font-medium animate-in fade-in slide-in-from-top-3 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-[#0B0806]/95 backdrop-blur-md border-b border-[#E5BE7A]/20 px-6 py-4">
+      <header className="sticky top-0 z-40 bg-[#09090b]/90 backdrop-blur-md border-b border-zinc-800/80 px-6 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#E5BE7A]/15 border border-[#E5BE7A]/40 flex items-center justify-center text-[#E5BE7A]">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-serif text-lg font-normal text-[#F5EBDD]">
+                <span className="text-sm font-semibold text-zinc-100 tracking-tight">
                   Sonal Makwana
                 </span>
-                <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 uppercase tracking-widest font-semibold">
-                  Z+ SECURED
+                <span className="text-[10px] font-mono bg-emerald-950/60 text-emerald-400 px-2 py-0.5 rounded border border-emerald-800/40 uppercase tracking-wider font-semibold">
+                  Secure
                 </span>
               </div>
-              <p className="text-[11px] font-mono uppercase tracking-[0.16em] text-[#8C8072]">
-                Admin Control Room · Live Edge Connected
+              <p className="text-[11px] text-zinc-400">
+                Executive Control Panel
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-white/15 text-xs text-[#C4B7A5] hover:text-white hover:border-[#E5BE7A] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors"
             >
-              <span>View Live Website</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <span>View Website</span>
+              <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
             </a>
 
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-rose-800/40 text-rose-300 bg-rose-950/30 hover:bg-rose-900/50 text-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:text-rose-400 hover:border-rose-900/50 hover:bg-rose-950/20 text-xs transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
@@ -719,22 +695,22 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* Navigation Tabs Bar */}
-      <div className="border-b border-white/[0.08] bg-[#0E0B09]">
-        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center gap-1 sm:gap-2 pt-3">
+      {/* Modern Navigation Tabs Bar */}
+      <div className="border-b border-zinc-800/80 bg-[#09090b]">
+        <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center gap-1 sm:gap-2">
           
           <button
             onClick={() => setActiveTab('inquiries')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
               activeTab === 'inquiries'
-                ? 'border-[#E5BE7A] text-[#E5BE7A] bg-[#E5BE7A]/5'
-                : 'border-transparent text-[#8C8072] hover:text-[#D8CDC0]'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Mail className="w-4 h-4" />
+            <Mail className="w-4 h-4 text-zinc-400" />
             <span>Organiser Bookings</span>
             {newCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-[#E5BE7A] text-black font-mono text-[10px] font-bold">
+              <span className="px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-950 font-mono text-[10px] font-bold">
                 {newCount}
               </span>
             )}
@@ -742,51 +718,51 @@ export default function AdminPage() {
 
           <button
             onClick={() => setActiveTab('gallery')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
               activeTab === 'gallery'
-                ? 'border-[#E5BE7A] text-[#E5BE7A] bg-[#E5BE7A]/5'
-                : 'border-transparent text-[#8C8072] hover:text-[#D8CDC0]'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <ImageIcon className="w-4 h-4" />
-            <span>Moments on Stage (Gallery)</span>
-            <span className="text-xs font-mono text-[#8C8072]">({galleryItems.length})</span>
+            <ImageIcon className="w-4 h-4 text-zinc-400" />
+            <span>Moments on Stage</span>
+            <span className="text-xs text-zinc-500">({galleryItems.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('video')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
               activeTab === 'video'
-                ? 'border-[#E5BE7A] text-[#E5BE7A] bg-[#E5BE7A]/5'
-                : 'border-transparent text-[#8C8072] hover:text-[#D8CDC0]'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Play className="w-4 h-4" />
-            <span>Magic of Live Music (Video)</span>
+            <Play className="w-4 h-4 text-zinc-400" />
+            <span>Live Music Video</span>
           </button>
 
           <button
             onClick={() => setActiveTab('song')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
               activeTab === 'song'
-                ? 'border-[#E5BE7A] text-[#E5BE7A] bg-[#E5BE7A]/5'
-                : 'border-transparent text-[#8C8072] hover:text-[#D8CDC0]'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Music className="w-4 h-4" />
-            <span>Featured Song & Audio</span>
+            <Music className="w-4 h-4 text-zinc-400" />
+            <span>Featured Song</span>
           </button>
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
               activeTab === 'security'
-                ? 'border-[#E5BE7A] text-[#E5BE7A] bg-[#E5BE7A]/5'
-                : 'border-transparent text-[#8C8072] hover:text-[#D8CDC0]'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Z+ Security Center</span>
+            <ShieldCheck className="w-4 h-4 text-zinc-400" />
+            <span>Security Center</span>
           </button>
 
         </div>
@@ -803,52 +779,52 @@ export default function AdminPage() {
             
             {/* Top Metrics Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8C8072]">New Requests</span>
-                <div className="text-3xl font-serif text-[#E5BE7A]">{newCount}</div>
-                <span className="text-[10px] text-amber-400 font-mono">Requires action</span>
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-1">
+                <span className="text-xs text-zinc-400 font-medium">New Requests</span>
+                <div className="text-2xl sm:text-3xl font-semibold text-amber-400">{newCount}</div>
+                <span className="text-[11px] text-zinc-500">Requires attention</span>
               </div>
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8C8072]">Contacted</span>
-                <div className="text-3xl font-serif text-[#D8CDC0]">{contactedCount}</div>
-                <span className="text-[10px] text-blue-400 font-mono">In discussion</span>
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-1">
+                <span className="text-xs text-zinc-400 font-medium">Contacted</span>
+                <div className="text-2xl sm:text-3xl font-semibold text-blue-400">{contactedCount}</div>
+                <span className="text-[11px] text-zinc-500">In discussion</span>
               </div>
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8C8072]">Confirmed Shows</span>
-                <div className="text-3xl font-serif text-emerald-400">{confirmedCount}</div>
-                <span className="text-[10px] text-emerald-400 font-mono">Booked on dates</span>
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-1">
+                <span className="text-xs text-zinc-400 font-medium">Confirmed Shows</span>
+                <div className="text-2xl sm:text-3xl font-semibold text-emerald-400">{confirmedCount}</div>
+                <span className="text-[11px] text-zinc-500">Event date booked</span>
               </div>
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-1">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8C8072]">Total Inquiries</span>
-                <div className="text-3xl font-serif text-[#F5EBDD]">{inquiries.length}</div>
-                <span className="text-[10px] text-[#A39888] font-mono">Lifetime records</span>
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-1">
+                <span className="text-xs text-zinc-400 font-medium">Total Inquiries</span>
+                <div className="text-2xl sm:text-3xl font-semibold text-zinc-100">{inquiries.length}</div>
+                <span className="text-[11px] text-zinc-500">All submissions</span>
               </div>
             </div>
 
             {/* Filter & Action Controls Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-[#120F0C] border border-white/10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-[#121215] border border-zinc-800">
               
               {/* Search input */}
               <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-[#8C8072] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search organiser name, phone, city, or event..."
                   value={inquirySearch}
                   onChange={(e) => setInquirySearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#090706] border border-white/10 focus:border-[#E5BE7A] focus:outline-none rounded-lg text-xs sm:text-sm text-[#F5EBDD] placeholder:text-white/20"
+                  className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 transition-colors"
                 />
               </div>
 
-              {/* Status Pills & Export */}
+              {/* Status Filter Pills & Export */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-lg border border-white/10 bg-[#090706] p-1 text-xs font-mono">
+                <div className="flex rounded-lg border border-zinc-800 bg-zinc-900 p-1 text-xs">
                   {['all', 'new', 'contacted', 'confirmed', 'archived'].map((st) => (
                     <button
                       key={st}
                       onClick={() => setInquiryFilter(st)}
-                      className={`px-3 py-1 rounded capitalize transition-colors ${
-                        inquiryFilter === st ? 'bg-[#E5BE7A] text-black font-semibold' : 'text-[#8C8072] hover:text-white'
+                      className={`px-3 py-1 rounded capitalize font-medium transition-colors ${
+                        inquiryFilter === st ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                     >
                       {st}
@@ -858,7 +834,7 @@ export default function AdminPage() {
 
                 <button
                   onClick={fetchInquiries}
-                  className="p-2 rounded-lg border border-white/10 hover:border-[#E5BE7A] text-[#C4B7A5] hover:text-white transition-colors"
+                  className="p-2 rounded-lg border border-zinc-800 hover:border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200 transition-colors"
                   title="Refresh Inquiries"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoadingInquiries ? 'animate-spin' : ''}`} />
@@ -866,28 +842,28 @@ export default function AdminPage() {
 
                 <button
                   onClick={exportInquiriesCSV}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#E5BE7A]/15 border border-[#E5BE7A]/40 text-[#E5BE7A] hover:bg-[#E5BE7A] hover:text-black transition-all text-xs font-semibold"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-950 font-medium transition-all text-xs"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Export Excel / CSV</span>
+                  <Download className="w-3.5 h-3.5 text-zinc-950" />
+                  <span>Export CSV</span>
                 </button>
               </div>
             </div>
 
             {/* Inquiries Cards List */}
             {isLoadingInquiries ? (
-              <div className="text-center py-16 text-[#8C8072] font-mono">
-                <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#E5BE7A]" />
+              <div className="text-center py-16 text-zinc-500 text-sm">
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-zinc-400" />
                 Loading organizer booking submissions...
               </div>
             ) : filteredInquiries.length === 0 ? (
-              <div className="text-center py-16 rounded-xl bg-[#120F0C] border border-white/10 text-[#8C8072] space-y-2">
-                <Mail className="w-8 h-8 mx-auto text-[#E5BE7A]/40 mb-2" />
-                <p className="text-sm">No organizer booking inquiries match your filter.</p>
-                <p className="text-xs font-mono">New submissions from the live booking form will appear here instantly.</p>
+              <div className="text-center py-16 rounded-xl bg-[#121215] border border-zinc-800 text-zinc-500 space-y-2">
+                <Mail className="w-7 h-7 mx-auto text-zinc-600 mb-2" />
+                <p className="text-sm text-zinc-300 font-medium">No booking inquiries match your filter.</p>
+                <p className="text-xs text-zinc-500">Submissions from the public booking form will appear here.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {filteredInquiries.map((inq) => {
                   const whatsappCleanPhone = inq.phone.replace(/[^0-9]/g, '');
                   const whatsappText = encodeURIComponent(
@@ -898,51 +874,51 @@ export default function AdminPage() {
                   return (
                     <div 
                       key={inq.id}
-                      className="p-6 rounded-xl bg-[#120F0C] border border-white/10 hover:border-[#E5BE7A]/30 transition-all space-y-4 shadow-lg"
+                      className="p-5 sm:p-6 rounded-xl bg-[#121215] border border-zinc-800 hover:border-zinc-700/80 transition-all space-y-4 shadow-sm"
                     >
                       {/* Card Header */}
-                      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+                      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-800/80 pb-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-3">
-                            <h3 className="font-serif text-2xl text-[#F5EBDD] font-normal">
+                            <h3 className="text-lg sm:text-xl font-semibold text-zinc-100 tracking-tight">
                               {inq.name}
                             </h3>
-                            <span className="font-mono text-xs text-[#8C8072]">
-                              [{inq.id}]
+                            <span className="font-mono text-xs text-zinc-500">
+                              #{inq.id}
                             </span>
                           </div>
-                          <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-[#A39888]">
-                            <span className="text-[#E5BE7A] font-semibold">{inq.eventType}</span>
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400">
+                            <span className="text-zinc-200 font-medium">{inq.eventType}</span>
                             {inq.city && <span>📍 {inq.city}</span>}
                             {inq.eventDate && <span>📅 Date: {inq.eventDate}</span>}
-                            <span>⏱ Submitted {new Date(inq.createdAt).toLocaleDateString()}</span>
+                            <span className="text-zinc-500">⏱ {new Date(inq.createdAt).toLocaleDateString()}</span>
                           </div>
                         </div>
 
                         {/* Status Dropdown & Delete */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5">
                           <select
                             value={inq.status}
                             onChange={(e) => handleStatusChange(inq.id, e.target.value as Inquiry['status'])}
-                            className={`px-3 py-1.5 rounded text-xs font-mono font-semibold uppercase border transition-colors focus:outline-none ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase border transition-colors focus:outline-none ${
                               inq.status === 'new'
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                 : inq.status === 'contacted'
-                                ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                                 : inq.status === 'confirmed'
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                 : 'bg-zinc-800 text-zinc-400 border-zinc-700'
                             }`}
                           >
-                            <option value="new" className="bg-[#120F0C] text-amber-300">🟡 New Form</option>
-                            <option value="contacted" className="bg-[#120F0C] text-blue-300">🔵 Contacted</option>
-                            <option value="confirmed" className="bg-[#120F0C] text-emerald-300">🟢 Confirmed</option>
-                            <option value="archived" className="bg-[#120F0C] text-zinc-400">⚪ Archived</option>
+                            <option value="new" className="bg-zinc-900 text-amber-400">New Request</option>
+                            <option value="contacted" className="bg-zinc-900 text-blue-400">Contacted</option>
+                            <option value="confirmed" className="bg-zinc-900 text-emerald-400">Confirmed</option>
+                            <option value="archived" className="bg-zinc-900 text-zinc-400">Archived</option>
                           </select>
 
                           <button
                             onClick={() => handleDeleteInquiry(inq.id)}
-                            className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/30 rounded transition-colors"
+                            className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors"
                             title="Delete Inquiry"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -952,34 +928,34 @@ export default function AdminPage() {
 
                       {/* Organizer Message / Requirements */}
                       {inq.message && (
-                        <div className="bg-[#090706] p-4 rounded-lg border border-white/5 text-sm text-[#D8CDC0] font-light leading-relaxed">
-                          <span className="block text-[11px] font-mono uppercase tracking-wider text-[#8C8072] mb-1">
-                            Organiser's Event Message:
+                        <div className="bg-zinc-900/60 p-3.5 rounded-lg border border-zinc-800/80 text-xs sm:text-sm text-zinc-300 font-normal leading-relaxed">
+                          <span className="block text-[11px] text-zinc-500 uppercase tracking-wider font-semibold mb-1">
+                            Organiser's Message:
                           </span>
                           "{inq.message}"
                         </div>
                       )}
 
                       {/* Contact Actions Bar */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                         <div className="flex flex-wrap items-center gap-2">
                           {/* Direct WhatsApp Call/Chat */}
                           <a
                             href={whatsappUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 text-xs font-semibold font-mono transition-all"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800/50 text-xs font-medium transition-all"
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
+                            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
                             <span>WhatsApp ({inq.phone})</span>
                           </a>
 
                           {/* Direct Phone Call */}
                           <a
                             href={`tel:${inq.phone}`}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#E5BE7A]/15 hover:bg-[#E5BE7A] text-[#E5BE7A] hover:text-black border border-[#E5BE7A]/30 text-xs font-semibold font-mono transition-all"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 text-xs font-medium transition-all"
                           >
-                            <Phone className="w-3.5 h-3.5" />
+                            <Phone className="w-3.5 h-3.5 text-zinc-400" />
                             <span>Call Organiser</span>
                           </a>
 
@@ -987,9 +963,9 @@ export default function AdminPage() {
                           {inq.email && (
                             <a
                               href={`mailto:${inq.email}`}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-white/10 hover:border-white/30 text-xs font-mono text-[#A39888] hover:text-white transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
                             >
-                              <Mail className="w-3.5 h-3.5" />
+                              <Mail className="w-3.5 h-3.5 text-zinc-400" />
                               <span>{inq.email}</span>
                             </a>
                           )}
@@ -1004,17 +980,17 @@ export default function AdminPage() {
                                 value={tempNotes}
                                 onChange={(e) => setTempNotes(e.target.value)}
                                 placeholder="Add organizer note..."
-                                className="px-3 py-1 bg-[#090706] border border-[#E5BE7A] text-xs text-[#F5EBDD] rounded focus:outline-none"
+                                className="px-3 py-1 bg-zinc-900 border border-zinc-700 text-xs text-zinc-100 rounded-lg focus:outline-none"
                               />
                               <button
                                 onClick={() => handleSaveNotes(inq.id)}
-                                className="p-1 bg-[#E5BE7A] text-black rounded text-xs"
+                                className="px-2.5 py-1 bg-zinc-100 hover:bg-white text-zinc-950 rounded-lg text-xs font-medium"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => setEditingNotesId(null)}
-                                className="p-1 text-[#8C8072] text-xs"
+                                className="px-2 py-1 text-zinc-500 hover:text-zinc-300 text-xs"
                               >
                                 Cancel
                               </button>
@@ -1025,7 +1001,7 @@ export default function AdminPage() {
                                 setEditingNotesId(inq.id);
                                 setTempNotes(inq.notes || '');
                               }}
-                              className="text-xs text-[#8C8072] hover:text-[#E5BE7A] font-mono transition-colors"
+                              className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
                             >
                               {inq.notes ? `📝 Note: ${inq.notes}` : '+ Add Internal Note'}
                             </button>
@@ -1048,35 +1024,35 @@ export default function AdminPage() {
         {activeTab === 'gallery' && (
           <div className="space-y-6">
             
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-[#120F0C] border border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl bg-[#121215] border border-zinc-800">
               <div>
-                <h2 className="font-serif text-2xl text-[#F5EBDD]">
+                <h2 className="text-xl font-semibold text-zinc-100">
                   Moments on Stage Gallery
                 </h2>
-                <p className="text-xs text-[#8C8072] font-mono mt-0.5">
-                  Manage the interactive 3D stage carousel pictures shown on the live website.
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Manage the stage carousel photos shown on the live website.
                 </p>
               </div>
 
               <button
                 onClick={openAddModal}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#E5BE7A] hover:bg-white text-[#090807] font-semibold text-xs sm:text-sm uppercase tracking-wider rounded-lg transition-all shadow-lg active:scale-95"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-zinc-200 text-zinc-950 font-medium text-xs sm:text-sm rounded-lg transition-all shadow-sm active:scale-95"
               >
-                <Plus className="w-4 h-4" />
-                <span>Add New Stage Photo</span>
+                <Plus className="w-4 h-4 text-zinc-950" />
+                <span>Add Stage Photo</span>
               </button>
             </div>
 
             {/* Gallery Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {galleryItems.map((item, index) => (
                 <div 
                   key={item.id}
-                  className="rounded-xl bg-[#120F0C] border border-white/10 overflow-hidden flex flex-col justify-between group shadow-xl"
+                  className="rounded-xl bg-[#121215] border border-zinc-800 overflow-hidden flex flex-col justify-between group shadow-sm hover:border-zinc-700 transition-colors"
                 >
                   <div className="space-y-3">
                     {/* Image with Focal Frame Position applied */}
-                    <div className="relative aspect-[4/3] w-full bg-[#181410] overflow-hidden">
+                    <div className="relative aspect-[4/3] w-full bg-zinc-900 overflow-hidden">
                       <img
                         src={item.image}
                         alt={item.title}
@@ -1085,31 +1061,31 @@ export default function AdminPage() {
                       />
                       
                       {/* Badges */}
-                      <div className="absolute top-3 left-3 flex items-center gap-2">
-                        <span className="font-mono text-xs bg-black/70 text-[#E5BE7A] px-2.5 py-1 rounded backdrop-blur-sm border border-white/10 font-bold">
-                          PLATE {item.number}
+                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                        <span className="font-mono text-xs bg-black/80 text-zinc-200 px-2 py-0.5 rounded-md backdrop-blur-sm border border-zinc-700/60 font-semibold">
+                          #{item.number}
                         </span>
-                        <span className="text-[10px] uppercase tracking-wider bg-black/70 text-white/90 px-2 py-1 rounded backdrop-blur-sm border border-white/10">
+                        <span className="text-[11px] bg-black/80 text-zinc-300 px-2 py-0.5 rounded-md backdrop-blur-sm border border-zinc-700/60">
                           {item.category}
                         </span>
                       </div>
 
                       {/* Focal Indicator Badge */}
-                      <div className="absolute bottom-3 right-3 bg-black/80 px-2 py-0.5 rounded text-[10px] font-mono text-[#E5BE7A] border border-white/10">
-                        Frame: {item.objectPosition || 'center 20%'}
+                      <div className="absolute bottom-2.5 right-2.5 bg-black/80 px-2 py-0.5 rounded-md text-[10px] font-mono text-zinc-300 border border-zinc-700/60">
+                        {item.objectPosition || 'center 20%'}
                       </div>
                     </div>
 
                     {/* Metadata */}
-                    <div className="p-5 space-y-2">
-                      <h4 className="font-serif text-xl text-[#F5EBDD] font-normal leading-snug">
+                    <div className="p-4 space-y-1.5">
+                      <h4 className="text-base font-semibold text-zinc-100 leading-snug">
                         {item.title}
                       </h4>
-                      <p className="text-xs font-mono text-[#E5BE7A] uppercase tracking-wider">
+                      <p className="text-xs text-zinc-400 font-medium">
                         {item.designation}
                       </p>
                       {item.quote && (
-                        <p className="text-xs text-[#A39888] font-light italic line-clamp-2 pt-2 border-t border-white/[0.06]">
+                        <p className="text-xs text-zinc-400 font-normal line-clamp-2 pt-2 border-t border-zinc-800/80">
                           "{item.quote}"
                         </p>
                       )}
@@ -1117,12 +1093,12 @@ export default function AdminPage() {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="px-5 py-3.5 bg-[#090706] border-t border-white/[0.08] flex items-center justify-between">
+                  <div className="px-4 py-3 bg-zinc-900/60 border-t border-zinc-800/80 flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleMoveGalleryItem(index, 'up')}
                         disabled={index === 0}
-                        className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 text-[#C4B7A5]"
+                        className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-30 text-zinc-400 hover:text-zinc-200 transition-colors"
                         title="Move Earlier"
                       >
                         <ArrowUp className="w-4 h-4" />
@@ -1130,7 +1106,7 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleMoveGalleryItem(index, 'down')}
                         disabled={index === galleryItems.length - 1}
-                        className="p-1.5 rounded hover:bg-white/10 disabled:opacity-30 text-[#C4B7A5]"
+                        className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-30 text-zinc-400 hover:text-zinc-200 transition-colors"
                         title="Move Later"
                       >
                         <ArrowDown className="w-4 h-4" />
@@ -1140,15 +1116,15 @@ export default function AdminPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEditModal(item)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-mono text-[#E5BE7A] hover:bg-[#E5BE7A]/15 border border-[#E5BE7A]/30 transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/80 transition-colors"
                       >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Adjust / Edit</span>
+                        <Edit3 className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Adjust Frame</span>
                       </button>
 
                       <button
                         onClick={() => handleDeleteGalleryItem(item.id)}
-                        className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/30 rounded transition-colors"
+                        className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition-colors"
                         title="Delete Photo"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1166,27 +1142,27 @@ export default function AdminPage() {
         {/* TAB 3: THE MAGIC OF LIVE MUSIC (PERFORMANCE VIDEO) */}
         {/* ========================================================================= */}
         {activeTab === 'video' && (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-white/10 space-y-2">
-              <div className="flex items-center gap-2 text-[#E5BE7A] text-xs font-mono uppercase tracking-wider">
-                <Play className="w-4 h-4" />
-                <span>Section [04] Configuration</span>
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-1.5">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium">
+                <Play className="w-4 h-4 text-zinc-400" />
+                <span>Live Performance Video (Section 04)</span>
               </div>
-              <h2 className="font-serif text-3xl text-[#F5EBDD]">
+              <h2 className="text-2xl font-semibold text-zinc-100">
                 The Magic of Live Music
               </h2>
-              <p className="text-xs sm:text-sm text-[#A39888] font-light leading-relaxed">
-                Update the featured live concert showcase video shown in the cinematic letterbox section of the homepage.
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                Update the concert video displayed in the video modal on the homepage.
               </p>
             </div>
 
             {/* Video Preview */}
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-white/10 space-y-4">
-              <span className="text-xs font-mono uppercase tracking-wider text-[#E5BE7A] font-semibold block">
-                Live Video Preview (YouTube Embed)
+            <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-3">
+              <span className="text-xs font-medium text-zinc-300 block">
+                Current Video Preview
               </span>
-              <div className="aspect-[16/9] w-full rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+              <div className="aspect-[16/9] w-full rounded-lg overflow-hidden bg-black border border-zinc-800 shadow-md">
                 <iframe
                   className="w-full h-full"
                   src={`https://www.youtube-nocookie.com/embed/${settings.livePerformance.videoId}?controls=1&rel=0`}
@@ -1197,11 +1173,11 @@ export default function AdminPage() {
             </div>
 
             {/* Video Edit Form */}
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-white/10 space-y-5">
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-4">
               
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
-                  YouTube Performance Video Link or Video ID
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-300 block">
+                  YouTube Video Link or Video ID
                 </label>
                 <input
                   type="text"
@@ -1211,16 +1187,16 @@ export default function AdminPage() {
                     livePerformance: { ...settings.livePerformance, youtubeUrl: e.target.value }
                   })}
                   placeholder="e.g. https://www.youtube.com/watch?v=RXVnBqGBi9A or RXVnBqGBi9A"
-                  className="w-full px-4 py-3 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD] font-mono"
+                  className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 font-mono placeholder:text-zinc-600 transition-colors"
                 />
-                <span className="text-[11px] font-mono text-[#8C8072]">
-                  Paste any YouTube link (youtu.be/..., youtube.com/watch?v=..., or 11-char ID). System extracts it automatically.
+                <span className="text-[11px] text-zinc-500">
+                  Accepts any YouTube link or ID. Extracts video ID automatically.
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-300 block">
                     Section Heading
                   </label>
                   <input
@@ -1230,12 +1206,12 @@ export default function AdminPage() {
                       ...settings,
                       livePerformance: { ...settings.livePerformance, title: e.target.value }
                     })}
-                    className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                    className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-300 block">
                     Section Subtitle
                   </label>
                   <input
@@ -1245,13 +1221,13 @@ export default function AdminPage() {
                       ...settings,
                       livePerformance: { ...settings.livePerformance, subtitle: e.target.value }
                     })}
-                    className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                    className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-300 block">
                   Narrative Description
                 </label>
                 <textarea
@@ -1261,12 +1237,12 @@ export default function AdminPage() {
                     ...settings,
                     livePerformance: { ...settings.livePerformance, description: e.target.value }
                   })}
-                  className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                  className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-300 block">
                   YouTube Channel URL
                 </label>
                 <input
@@ -1276,27 +1252,26 @@ export default function AdminPage() {
                     ...settings,
                     livePerformance: { ...settings.livePerformance, channelUrl: e.target.value }
                   })}
-                  className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD] font-mono"
+                  className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 font-mono transition-colors"
                 />
               </div>
 
-              <button
-                onClick={() => handleSaveSettings('video')}
-                disabled={isSavingSettings}
-                className="w-full py-3.5 bg-[#E5BE7A] hover:bg-white text-[#090807] font-semibold text-xs sm:text-sm uppercase tracking-wider rounded-lg transition-all duration-300 flex items-center justify-center gap-2 shadow-xl disabled:opacity-50"
-              >
-                {isSavingSettings ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Publishing Video to Live Site...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Save & Publish Live Performance Video</span>
-                  </>
-                )}
-              </button>
+              <div className="pt-2">
+                <button
+                  onClick={() => handleSaveSettings('video')}
+                  disabled={isSavingSettings}
+                  className="w-full py-2.5 bg-white hover:bg-zinc-200 active:scale-[0.98] text-zinc-950 font-medium text-sm rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  {isSavingSettings ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-zinc-950" />
+                      <span>Updating Video...</span>
+                    </>
+                  ) : (
+                    <span>Save & Update Video</span>
+                  )}
+                </button>
+              </div>
 
             </div>
 
@@ -1307,26 +1282,26 @@ export default function AdminPage() {
         {/* TAB 4: FEATURED SONG & AUDIO STREAM */}
         {/* ========================================================================= */}
         {activeTab === 'song' && (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-white/10 space-y-2">
-              <div className="flex items-center gap-2 text-[#E5BE7A] text-xs font-mono uppercase tracking-wider">
-                <Music className="w-4 h-4" />
-                <span>Section [02] Configuration</span>
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-1.5">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium">
+                <Music className="w-4 h-4 text-zinc-400" />
+                <span>Featured Song (Section 02)</span>
               </div>
-              <h2 className="font-serif text-3xl text-[#F5EBDD]">
+              <h2 className="text-2xl font-semibold text-zinc-100">
                 Featured Song & Audio Deck
               </h2>
-              <p className="text-xs sm:text-sm text-[#A39888] font-light leading-relaxed">
-                Update the featured song, sacred raag, and background stream that plays when visitors press the vinyl play button.
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                Update the song and background audio that plays on the homepage vinyl player.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-white/10 space-y-5">
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-4">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-300 block">
                     Song Title
                   </label>
                   <input
@@ -1337,12 +1312,12 @@ export default function AdminPage() {
                       featuredSong: { ...settings.featuredSong, title: e.target.value }
                     })}
                     placeholder="e.g. Ram Aayenge"
-                    className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                    className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-300 block">
                     Raag / Style Category
                   </label>
                   <input
@@ -1353,13 +1328,13 @@ export default function AdminPage() {
                       featuredSong: { ...settings.featuredSong, raag: e.target.value }
                     })}
                     placeholder="e.g. Devotional Bhajan · Bhakti Rasa"
-                    className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                    className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-300 block">
                   YouTube Audio Stream Link or Video ID
                 </label>
                 <input
@@ -1374,15 +1349,15 @@ export default function AdminPage() {
                     }
                   })}
                   placeholder="e.g. https://www.youtube.com/watch?v=1CTF9uM65b8 or 1CTF9uM65b8"
-                  className="w-full px-4 py-3 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD] font-mono"
+                  className="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 font-mono transition-colors"
                 />
-                <span className="text-[11px] font-mono text-[#8C8072]">
-                  The site streams audio directly from this YouTube video when users click Play on the vinyl deck.
+                <span className="text-[11px] text-zinc-500">
+                  Audio streams seamlessly when visitors click Play on the homepage vinyl player.
                 </span>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-300 block">
                   Song Description & Emotional Context
                 </label>
                 <textarea
@@ -1392,27 +1367,26 @@ export default function AdminPage() {
                     ...settings,
                     featuredSong: { ...settings.featuredSong, subtitle: e.target.value }
                   })}
-                  className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                  className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                 />
               </div>
 
-              <button
-                onClick={() => handleSaveSettings('song')}
-                disabled={isSavingSettings}
-                className="w-full py-3.5 bg-[#E5BE7A] hover:bg-white text-[#090807] font-semibold text-xs sm:text-sm uppercase tracking-wider rounded-lg transition-all duration-300 flex items-center justify-center gap-2 shadow-xl disabled:opacity-50"
-              >
-                {isSavingSettings ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Publishing Song to Live Site...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Save & Publish Featured Song</span>
-                  </>
-                )}
-              </button>
+              <div className="pt-2">
+                <button
+                  onClick={() => handleSaveSettings('song')}
+                  disabled={isSavingSettings}
+                  className="w-full py-2.5 bg-white hover:bg-zinc-200 active:scale-[0.98] text-zinc-950 font-medium text-sm rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  {isSavingSettings ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin text-zinc-950" />
+                      <span>Updating Featured Song...</span>
+                    </>
+                  ) : (
+                    <span>Save & Update Featured Song</span>
+                  )}
+                </button>
+              </div>
 
             </div>
 
@@ -1420,79 +1394,78 @@ export default function AdminPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: Z+ SECURITY AUDIT & PROTOCOLS */}
+        {/* TAB 5: SECURITY CENTER */}
         {/* ========================================================================= */}
         {activeTab === 'security' && (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-[#E5BE7A]/30 space-y-2 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#E5BE7A]/5 rounded-full blur-3xl pointer-events-none" />
-              <div className="flex items-center gap-2 text-emerald-400 text-xs font-mono uppercase tracking-wider">
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Enterprise Z+ Security Shield Active</span>
+                <span>Security Engine Active</span>
               </div>
-              <h2 className="font-serif text-3xl text-[#F5EBDD]">
-                Security Center & Protection Audit
+              <h2 className="text-2xl font-semibold text-zinc-100">
+                Security Center
               </h2>
-              <p className="text-xs sm:text-sm text-[#A39888] font-light leading-relaxed">
-                Your admin panel is protected by multi-layered defensive security designed to block automated bots, credential scanners, and unauthorized modifications.
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                Your administrative portal is protected by multi-layered defensive security designed to block automated bots, credential scanners, and unauthorized modifications.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                  <CheckCircle2 className="w-4 h-4" />
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-2">
+                <div className="flex items-center gap-2 text-zinc-200 text-xs font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>Server-Side Token Verification</span>
                 </div>
-                <p className="text-xs text-[#C4B7A5] font-light leading-relaxed">
-                  Passcodes and tokens are verified solely on the server edge. No hardcoded passwords exist in client JavaScript.
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Passcodes are strictly validated on the server edge. No passwords or secret keys exist in client-side JavaScript.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                  <CheckCircle2 className="w-4 h-4" />
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-2">
+                <div className="flex items-center gap-2 text-zinc-200 text-xs font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>Brute-Force Rate Limiter</span>
                 </div>
-                <p className="text-xs text-[#C4B7A5] font-light leading-relaxed">
-                  Automatic IP lockdown activates after 5 consecutive failed attempts. Bots and brute-force tools are banned for 15 minutes.
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  IP lockdown activates automatically after 5 consecutive failed attempts, shielding the portal from bots.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                  <CheckCircle2 className="w-4 h-4" />
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-2">
+                <div className="flex items-center gap-2 text-zinc-200 text-xs font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>HttpOnly SameSite Cookies</span>
                 </div>
-                <p className="text-xs text-[#C4B7A5] font-light leading-relaxed">
-                  Session tokens reside inside HttpOnly, Secure, SameSite=Strict cookies that cannot be read by malicious third-party scripts or XSS.
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Session tokens reside inside HttpOnly, Secure cookies protected against cross-site scripting (XSS) and token theft.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-[#120F0C] border border-white/10 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                  <CheckCircle2 className="w-4 h-4" />
+              <div className="p-4 sm:p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-2">
+                <div className="flex items-center gap-2 text-zinc-200 text-xs font-semibold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   <span>Protected API Endpoints</span>
                 </div>
-                <p className="text-xs text-[#C4B7A5] font-light leading-relaxed">
-                  Every mutation request (delete photo, update status, change video) strictly rejects non-authenticated requests with HTTP 401.
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Every delete or modification API request rejects unauthenticated traffic with HTTP 401 Unauthorized.
                 </p>
               </div>
             </div>
 
-            <div className="p-6 rounded-xl bg-[#120F0C] border border-white/10 space-y-4">
-              <h3 className="font-serif text-xl text-[#F5EBDD]">
-                To Change Your Master Passcode in Production:
+            <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-3">
+              <h3 className="text-sm font-semibold text-zinc-200">
+                Custom Passcode Configuration
               </h3>
-              <p className="text-xs sm:text-sm text-[#A39888] font-light leading-relaxed">
-                To set your own private custom passcode, add an environment variable in Cloudflare Dashboard:
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                When you set <code className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 font-mono text-zinc-300">ADMIN_PASSWORD</code> in your environment variables, only that custom password is accepted:
               </p>
-              <div className="p-3 bg-[#090706] rounded-lg border border-white/10 font-mono text-xs text-[#E5BE7A]">
-                ADMIN_PASSWORD = YourUltraSecurePasscodeHere
+              <div className="p-3 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-xs text-zinc-300">
+                ADMIN_PASSWORD = your-secret-password
               </div>
-              <p className="text-xs text-[#8C8072]">
-                Location: Cloudflare Dashboard → Workers & Pages → singer-portfolio → Settings → Variables and Secrets.
+              <p className="text-[11px] text-zinc-500">
+                For live deployments: Cloudflare Dashboard → Workers & Pages → singer-portfolio → Settings → Variables and Secrets.
               </p>
             </div>
 
@@ -1505,32 +1478,32 @@ export default function AdminPage() {
       {/* MODAL: ADD / EDIT GALLERY ITEM WITH MANUAL FRAME & HEAD POSITION SLIDER */}
       {/* ========================================================================= */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-[#120F0C] rounded-2xl border border-[#E5BE7A]/40 shadow-2xl p-6 sm:p-8 space-y-6 my-auto">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-xl bg-[#121215] rounded-xl border border-zinc-800 shadow-2xl p-6 space-y-5 my-auto">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+            <div className="flex items-center justify-between pb-3.5 border-b border-zinc-800">
               <div>
-                <h3 className="font-serif text-2xl text-[#F5EBDD]">
-                  {editingItem ? 'Edit Stage Photo & Adjust Frame' : 'Add New Stage Photo'}
+                <h3 className="text-lg font-semibold text-zinc-100">
+                  {editingItem ? 'Adjust Frame & Edit Photo' : 'Add Stage Photo'}
                 </h3>
-                <p className="text-xs font-mono text-[#E5BE7A]">
-                  {editingItem ? `Editing Plate ${editingItem.number}` : 'Upload & adjust image positioning'}
+                <p className="text-xs text-zinc-400">
+                  {editingItem ? `Editing Plate #${editingItem.number}` : 'Upload photo and align frame'}
                 </p>
               </div>
               <button
                 onClick={closeModal}
-                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveGallery} className="space-y-5">
+            <form onSubmit={handleSaveGallery} className="space-y-4">
               
               {/* Image Input & Upload */}
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-300 block">
                   Stage Photo
                 </label>
                 
@@ -1539,8 +1512,8 @@ export default function AdminPage() {
                     type="text"
                     value={formData.image}
                     onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="Enter image URL or upload photo below..."
-                    className="flex-1 px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-xs sm:text-sm text-[#F5EBDD] font-mono"
+                    placeholder="Image URL or upload..."
+                    className="flex-1 px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-xs sm:text-sm text-zinc-100 font-mono transition-colors"
                     required
                   />
 
@@ -1558,31 +1531,31 @@ export default function AdminPage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="px-4 py-2.5 bg-[#E5BE7A]/15 hover:bg-[#E5BE7A] text-[#E5BE7A] hover:text-black border border-[#E5BE7A]/30 rounded-lg text-xs font-mono font-semibold transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                    className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
                   >
                     {isUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    <span>{isUploading ? 'Uploading...' : 'Upload File'}</span>
+                    <span>{isUploading ? 'Uploading...' : 'Upload'}</span>
                   </button>
                 </div>
 
                 {uploadError && (
-                  <p className="text-xs text-rose-400 font-mono">{uploadError}</p>
+                  <p className="text-xs text-rose-400">{uploadError}</p>
                 )}
               </div>
 
               {/* LIVE FRAME PREVIEW & MANUAL HEAD POSITION SLIDER */}
               {formData.image && (
-                <div className="p-4 rounded-xl bg-[#090706] border border-[#E5BE7A]/30 space-y-4">
-                  <div className="flex items-center justify-between text-xs font-mono text-[#E5BE7A]">
-                    <span className="flex items-center gap-1.5 font-semibold">
-                      <Sliders className="w-3.5 h-3.5" />
-                      Manual Frame & Head Position Control
+                <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs text-zinc-300">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+                      Frame & Head Position (Vertical Alignment)
                     </span>
-                    <span>Offset: {focalPercent}%</span>
+                    <span className="font-mono text-zinc-400">Offset: {focalPercent}%</span>
                   </div>
 
                   {/* Frame Simulation Box */}
-                  <div className="relative w-full h-56 sm:h-64 rounded-xl overflow-hidden bg-black border border-white/20 shadow-inner">
+                  <div className="relative w-full h-52 sm:h-56 rounded-lg overflow-hidden bg-black border border-zinc-800 shadow-inner">
                     <img
                       src={formData.image}
                       alt="Frame preview"
@@ -1590,19 +1563,19 @@ export default function AdminPage() {
                       style={{ objectPosition: `center ${focalPercent}%` }}
                     />
 
-                    {/* Frame Guide Overlay Lines */}
-                    <div className="absolute inset-0 pointer-events-none border border-[#E5BE7A]/40 rounded-xl" />
-                    <div className="absolute top-2 left-2 bg-black/75 px-2 py-0.5 rounded text-[10px] font-mono text-emerald-300">
-                      Live Stage Frame Preview
+                    {/* Subtle Frame Guide Overlay */}
+                    <div className="absolute inset-0 pointer-events-none border border-zinc-700/40 rounded-lg" />
+                    <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300">
+                      Live Frame Simulation
                     </div>
                   </div>
 
                   {/* Vertical Slider Control */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[11px] font-mono text-[#A39888]">
-                      <span>Top (Head Focus: 0%)</span>
-                      <span className="text-[#E5BE7A]">Current: {focalPercent}%</span>
-                      <span>Bottom (Feet Focus: 100%)</span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] text-zinc-400">
+                      <span>Top (Head: 0%)</span>
+                      <span className="text-zinc-200 font-medium">Current: {focalPercent}%</span>
+                      <span>Bottom (Feet: 100%)</span>
                     </div>
                     <input
                       type="range"
@@ -1610,31 +1583,31 @@ export default function AdminPage() {
                       max={100}
                       value={focalPercent}
                       onChange={(e) => setFocalPercent(parseInt(e.target.value, 10))}
-                      className="w-full accent-[#E5BE7A] cursor-pointer"
+                      className="w-full accent-white cursor-pointer"
                     />
                   </div>
 
                   {/* Quick-Preset Buttons for Perfect Portrait Framing */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-mono">
-                    <span className="text-[#8C8072] text-[11px]">Quick Presets:</span>
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
+                    <span className="text-zinc-500 text-[11px]">Presets:</span>
                     <button
                       type="button"
                       onClick={() => setFocalPercent(15)}
-                      className="px-2.5 py-1 bg-white/5 hover:bg-[#E5BE7A]/20 border border-white/10 rounded text-[11px] text-[#F5EBDD]"
+                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition-colors"
                     >
-                      Top Head (15%)
+                      Head Focus (15%)
                     </button>
                     <button
                       type="button"
                       onClick={() => setFocalPercent(25)}
-                      className="px-2.5 py-1 bg-white/5 hover:bg-[#E5BE7A]/20 border border-white/10 rounded text-[11px] text-[#F5EBDD]"
+                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition-colors"
                     >
                       Upper Body (25%)
                     </button>
                     <button
                       type="button"
                       onClick={() => setFocalPercent(50)}
-                      className="px-2.5 py-1 bg-white/5 hover:bg-[#E5BE7A]/20 border border-white/10 rounded text-[11px] text-[#F5EBDD]"
+                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition-colors"
                     >
                       Center (50%)
                     </button>
@@ -1643,32 +1616,32 @@ export default function AdminPage() {
               )}
 
               {/* Title & Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
-                    Photo Title / Stage Event
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-300 block">
+                    Photo Title / Event Name
                   </label>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="e.g. Navratri Raas Mahotsav"
-                    className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                    className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                     required
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-300 block">
                     Category
                   </label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                    className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                   >
                     {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat} className="bg-[#120F0C] text-[#F5EBDD]">
+                      <option key={cat} value={cat} className="bg-zinc-900 text-zinc-100">
                         {cat}
                       </option>
                     ))}
@@ -1677,47 +1650,47 @@ export default function AdminPage() {
               </div>
 
               {/* Designation / Sub-caption */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
-                  Designation / Subheading
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-300 block">
+                  Subheading / Caption
                 </label>
                 <input
                   type="text"
                   value={formData.designation}
                   onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                   placeholder="e.g. Live Festive Performance"
-                  className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                  className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                 />
               </div>
 
               {/* Quote / Memory text */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-mono uppercase tracking-wider text-[#C4B7A5] block">
-                  Stage Narrative / Memory Quote
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-300 block">
+                  Stage Narrative / Memory
                 </label>
                 <textarea
                   rows={2}
                   value={formData.quote}
                   onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
-                  placeholder="Energetic traditional Garba and folk melodies bringing thousands of dancers together..."
-                  className="w-full px-4 py-2.5 bg-[#090706] border border-white/15 focus:border-[#E5BE7A] rounded-lg text-sm text-[#F5EBDD]"
+                  placeholder="Traditional Garba and folk melodies bringing thousands together..."
+                  className="w-full px-3.5 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-sm text-zinc-100 transition-colors"
                 />
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-5 py-2.5 rounded-lg border border-white/15 text-[#C4B7A5] hover:text-white text-xs font-mono"
+                  className="px-4 py-2 rounded-lg border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 text-xs font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#E5BE7A] hover:bg-white text-[#090807] font-semibold text-xs sm:text-sm uppercase tracking-wider rounded-lg transition-all shadow-xl"
+                  className="px-4 py-2 bg-white hover:bg-zinc-200 active:scale-[0.98] text-zinc-950 font-medium text-xs rounded-lg transition-all shadow-sm"
                 >
-                  {editingItem ? 'Save Adjustments' : 'Publish Stage Photo'}
+                  {editingItem ? 'Save Adjustments' : 'Publish Photo'}
                 </button>
               </div>
 

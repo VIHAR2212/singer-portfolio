@@ -47,13 +47,13 @@ export async function POST(req) {
         return NextResponse.json({ error: rateLimit.error }, { status: 429 });
       }
 
-      const expectedPassphrase = getAdminPassphrase();
+      const customEnvPassword = process.env.ADMIN_PASSWORD;
       const inputPasscode = String(passcode || '').trim();
 
-      // Timing-safe or strict comparison
-      const isValid = (inputPasscode === expectedPassphrase) || 
-                      (inputPasscode === 'sonal2026') || 
-                      (inputPasscode === 'admin123');
+      // If user configured their own custom password in environment, ONLY accept that password!
+      const isValid = customEnvPassword 
+        ? (inputPasscode === customEnvPassword.trim())
+        : (inputPasscode === 'sonal2026' || inputPasscode === 'admin123');
 
       if (!isValid) {
         recordFailedAttempt(ip);
