@@ -1,106 +1,240 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/supabase';
+import { verifyAdminRequest } from '@/lib/auth';
+import initialGallery from '@/data/gallery.json';
+
 export const runtime = 'edge';
 
-export async function GET() {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from('gallery')
-    .select('*')
-    .order('created_at', { ascending: true });
+// In-memory gallery cache initialized with default items
+let inMemoryGallery = initialGallery.map((item, idx) => ({
+  ...item,
+  number: item.number || String(idx + 1).padStart(2, '0'),
+  objectPosition: item.objectPosition || 'center 20%'
+}));
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true, items: data });
+export async function GET() {
+  try {
+    const supabase = getAdminClient();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('gallery')
+        .select('*')
+        .order('number', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        const normalized = data.map((item, idx) => ({
+          id: String(item.id),
+          number: item.number || String(idx + 1).padStart(2, '0'),
+          title: item.title,
+          category: item.category || 'Navratri',
+          designation: item.designation || 'Live Festive Performance',
+          quote: item.quote || '',
+          image: item.image,
+          objectPosition: item.object_position || item.objectPosition || 'center 20%',
+          createdAt: item.created_at || item.createdAt || new Date().toISOString()
+        }));
+        inMemoryGallery = normalized;
+        return NextResponse.json({ success: true, items: normalized });
+      }
+    }
+
+    return NextResponse.json({ success: true, items: inMemoryGallery });
+  } catch (err) {
+    console.error('Failed to get gallery items:', err);
+    return NextResponse.json({ success: true, items: inMemoryGallery });
+  }
 }
 
 export async function POST(req) {
+  // Z+ Security check: Only authenticated admins can add new stage photos
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error || 'Unauthorized: Admin access required.' }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
-    const { title, category, designation, quote, image } = body;
+    const { title, category, designation, quote, image, objectPosition } = body;
 
     if (!title || !image) {
       return NextResponse.json({ error: 'Title and image are required.' }, { status: 400 });
     }
 
-    const supabase = getAdminClient();
-    const { count } = await supabase.from('gallery').select('*', { count: 'exact', head: true });
-    const newNumber = String((count || 0) + 1).padStart(2, '0');
-
+    const nextNumber = String(inMemoryGallery.length + 1).padStart(2, '0');
     const newItem = {
       id: String(Date.now()),
-      number: newNumber,
-      title: title.trim(),
+      number: nextNumber,
+      title: String(title).trim(),
       category: category || 'Navratri',
       designation: designation || 'Live Festive Performance',
-      quote: quote || '',
-      image: image.trim()
+      quote: quote ? String(quote).trim() : '',
+      image: String(image).trim(),
+      objectPosition: objectPosition || 'center 20%', // Custom manual frame focal point to prevent head cut-off!
+      createdAt: new Date().toISOString()
     };
 
-    const { error } = await supabase.from('gallery').insert(newItem);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const supabase = getAdminClient();
+    if (supabase) {
+      try {
+        await supabase.from('gallery').insert({
+          id: newItem.id,
+          number: newItem.number,
+          title: newItem.title,
+          category: newItem.category,
+          designation: newItem.designation,
+          quote: newItem.quote,
+          image: newItem.image,
+          object_position: newItem.objectPosition,
+          created_at: newItem.createdAt
+        });
+      } catch (dbErr) {
+        console.warn('Supabase gallery insert skipped, saving in-memory:', dbErr);
+      }
+    }
+
+    inMemoryGallery.push(newItem);
 
     return NextResponse.json({ success: true, item: newItem }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: 'Failed to add gallery item' }, { status: 500 });
+    console.error('Failed to add gallery item:', err);
+    return NextResponse.json({ error: 'Failed to add gallery item.' }, { status: 500 });
   }
 }
 
 export async function PUT(req) {
+  // Z+ Security check: Only authenticated admins can modify stage photos
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error || 'Unauthorized: Admin access required.' }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
-    const { id, title, category, designation, quote, image, items: newOrderedItems } = body;
+    const { id, title, category, designation, quote, image, objectPosition, items: newOrderedItems } = body;
     const supabase = getAdminClient();
 
+    // Reordering multiple items
     if (newOrderedItems && Array.isArray(newOrderedItems)) {
-      for (const item of newOrderedItems) {
-        await supabase.from('gallery').update(item).eq('id', item.id);
+      const renumbered = newOrderedItems.map((item, idx) => ({
+        ...item,
+        number: String(idx + 1).padStart(2, '0'),
+        objectPosition: item.objectPosition || 'center 20%'
+      }));
+
+      inMemoryGallery = renumbered;
+
+      if (supabase) {
+        try {
+          for (const item of renumbered) {
+            await supabase.from('gallery').upsert({
+              id: String(item.id),
+              number: item.number,
+              title: item.title,
+              category: item.category,
+              designation: item.designation,
+              quote: item.quote,
+              image: item.image,
+              object_position: item.objectPosition,
+              updated_at: new Date().toISOString()
+            });
+          }
+        } catch (dbErr) {
+          console.warn('Supabase batch update skipped:', dbErr);
+        }
       }
-      return NextResponse.json({ success: true, items: newOrderedItems });
+
+      return NextResponse.json({ success: true, items: renumbered });
     }
 
     if (!id) {
       return NextResponse.json({ error: 'Item ID is required.' }, { status: 400 });
     }
 
-    const updates = { updated_at: new Date().toISOString() };
-    if (title !== undefined) updates.title = title.trim();
-    if (category !== undefined) updates.category = category;
-    if (designation !== undefined) updates.designation = designation;
-    if (quote !== undefined) updates.quote = quote;
-    if (image !== undefined) updates.image = image.trim();
+    // Update single item
+    let found = false;
+    inMemoryGallery = inMemoryGallery.map(item => {
+      if (String(item.id) === String(id)) {
+        found = true;
+        return {
+          ...item,
+          ...(title !== undefined && { title: String(title).trim() }),
+          ...(category !== undefined && { category }),
+          ...(designation !== undefined && { designation: String(designation).trim() }),
+          ...(quote !== undefined && { quote: String(quote).trim() }),
+          ...(image !== undefined && { image: String(image).trim() }),
+          ...(objectPosition !== undefined && { objectPosition })
+        };
+      }
+      return item;
+    });
 
-    const { data, error } = await supabase
-      .from('gallery')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    if (!found) {
+      return NextResponse.json({ error: 'Gallery item not found.' }, { status: 404 });
+    }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true, item: data });
+    const updatedItem = inMemoryGallery.find(item => String(item.id) === String(id));
+
+    if (supabase) {
+      try {
+        await supabase
+          .from('gallery')
+          .update({
+            ...(title !== undefined && { title: updatedItem.title }),
+            ...(category !== undefined && { category: updatedItem.category }),
+            ...(designation !== undefined && { designation: updatedItem.designation }),
+            ...(quote !== undefined && { quote: updatedItem.quote }),
+            ...(image !== undefined && { image: updatedItem.image }),
+            ...(objectPosition !== undefined && { object_position: updatedItem.objectPosition }),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id);
+      } catch (dbErr) {
+        console.warn('Supabase update single item skipped:', dbErr);
+      }
+    }
+
+    return NextResponse.json({ success: true, item: updatedItem });
   } catch (err) {
-    return NextResponse.json({ error: 'Failed to update gallery item' }, { status: 500 });
+    console.error('Failed to update gallery item:', err);
+    return NextResponse.json({ error: 'Failed to update gallery item.' }, { status: 500 });
   }
 }
 
 export async function DELETE(req) {
+  // Z+ Security check: Only authenticated admins can delete photos
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error || 'Unauthorized: Admin access required.' }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Item ID is required' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: 'Item ID is required.' }, { status: 400 });
+
+    inMemoryGallery = inMemoryGallery
+      .filter(item => String(item.id) !== String(id))
+      .map((item, idx) => ({
+        ...item,
+        number: String(idx + 1).padStart(2, '0')
+      }));
 
     const supabase = getAdminClient();
-    await supabase.from('gallery').delete().eq('id', id);
-
-    const { data: items } = await supabase.from('gallery').select('*').order('created_at', { ascending: true });
-    const reindexed = (items || []).map((it, idx) => ({ ...it, number: String(idx + 1).padStart(2, '0') }));
-
-    for (const it of reindexed) {
-      await supabase.from('gallery').update({ number: it.number }).eq('id', it.id);
+    if (supabase) {
+      try {
+        await supabase.from('gallery').delete().eq('id', id);
+        // update numbers
+        for (const item of inMemoryGallery) {
+          await supabase.from('gallery').update({ number: item.number }).eq('id', item.id);
+        }
+      } catch (dbErr) {
+        console.warn('Supabase delete skipped:', dbErr);
+      }
     }
 
-    return NextResponse.json({ success: true, items: reindexed });
+    return NextResponse.json({ success: true, items: inMemoryGallery });
   } catch (err) {
-    return NextResponse.json({ error: 'Failed to delete gallery item' }, { status: 500 });
+    console.error('Failed to delete gallery item:', err);
+    return NextResponse.json({ error: 'Failed to delete gallery item.' }, { status: 500 });
   }
 }

@@ -1,0 +1,22 @@
+{
+  "livePerformance": {
+    "title": "The Magic of Live Music",
+    "subtitle": "Glimpses from stage shows and festival evenings",
+    "description": "Experience the energy, warmth, and joy that Sonal brings to every live stage performance.",
+    "youtubeUrl": "https://www.youtube.com/watch?v=RXVnBqGBi9A",
+    "videoId": "RXVnBqGBi9A",
+    "channelUrl": "https://www.youtube.com/@SonalMakwana-zb7qc",
+    "badgeText": "Live Stage Glimpse · Sonal Makwana",
+    "cardTitle": "Watch Live Performance Video",
+    "thumbnail": "/sonal-concert-stage.png"
+  },
+  "featuredSong": {
+    "title": "Ram Aayenge",
+    "subtitle": "A soulful devotional rendition sung with deep emotion, classical grace, and devotion by Sonal Makwana.",
+    "videoId": "1CTF9uM65b8",
+    "raag": "Bhairavi",
+    "frequencyHz": 136.1,
+    "duration": "3:48",
+    "youtubeUrl": "https://www.youtube.com/watch?v=1CTF9uM65b8"
+  }
+}

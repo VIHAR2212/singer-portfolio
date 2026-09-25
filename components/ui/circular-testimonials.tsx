@@ -14,6 +14,7 @@ export interface Testimonial {
   name: string;
   designation: string;
   src: string;
+  objectPosition?: string;
 }
 
 export interface Colors {
@@ -174,7 +175,10 @@ export const CircularTestimonials = ({
                 src={testimonial.src}
                 alt={testimonial.name}
                 className="absolute inset-0 w-full h-full object-cover rounded-xl border border-[#E5BE7A]/40 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] cursor-pointer will-change-transform"
-                style={getImageStyle(index)}
+                style={{
+                  ...getImageStyle(index),
+                  objectPosition: testimonial.objectPosition || "center 20%"
+                }}
                 onClick={(e) => {
                   if (index !== activeIndex) {
                     e.stopPropagation();

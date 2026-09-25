@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Lenis from 'lenis';
-import { CircularTestimonials } from '@/components/ui/circular-testimonials';
+import { CircularTestimonials, Testimonial } from '@/components/ui/circular-testimonials';
 import { CelestialMandala } from '@/components/ui/celestial-mandala';
 import { 
   motion, 
@@ -160,7 +160,7 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
   }
 ];
 
-const ARCHIVE_TESTIMONIALS = [
+const ARCHIVE_TESTIMONIALS: Testimonial[] = [
   {
     src: '/gallery-item-1.png',
     name: 'Navratri Raas Stage',
@@ -431,6 +431,56 @@ export default function App() {
   // Gallery & Lightbox State
   const [activeLightboxIndex, setActiveLightboxIndex] = useState<number | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
+
+  // Dynamic Stage Moments Gallery and Site Performance Settings
+  const [stageMoments, setStageMoments] = useState<Testimonial[]>(ARCHIVE_TESTIMONIALS);
+  const [siteSettings, setSiteSettings] = useState({
+    livePerformance: {
+      title: "The Magic of Live Music",
+      subtitle: "Glimpses from stage shows and festival evenings",
+      description: "Experience the energy, warmth, and joy that Sonal brings to every live stage performance.",
+      youtubeUrl: "https://www.youtube.com/watch?v=RXVnBqGBi9A",
+      videoId: "RXVnBqGBi9A",
+      channelUrl: "https://www.youtube.com/@SonalMakwana-zb7qc",
+      thumbnail: "/sonal-concert-stage.png"
+    },
+    featuredSong: {
+      title: "Ram Aayenge",
+      subtitle: "A soulful devotional rendition sung with deep emotion, classical grace, and devotion by Sonal Makwana.",
+      videoId: "1CTF9uM65b8",
+      raag: "Bhairavi",
+      frequencyHz: 136.1
+    }
+  });
+
+  useEffect(() => {
+    // Dynamically load gallery items updated from admin
+    fetch('/api/gallery')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+          const formatted = data.items.map((it: any) => ({
+            src: it.image,
+            name: it.title,
+            designation: it.designation || it.category || 'Live Festive Performance',
+            quote: it.quote || '',
+            objectPosition: it.objectPosition || 'center 20%'
+          }));
+          setStageMoments(formatted);
+        }
+      })
+      .catch(() => {});
+
+    // Dynamically load live performance video & featured song settings
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.settings) {
+          setSiteSettings(data.settings);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Trilingual Artist Name Display State
   const [currentLangIdx, setCurrentLangIdx] = useState(0);
@@ -1421,13 +1471,13 @@ export default function App() {
                 {/* Title & Metadata */}
                 <div className="space-y-2">
                   <h3 className="font-serif-luxury text-3xl sm:text-4xl text-[#F5EBDD] font-normal tracking-wide">
-                    Ram Aayenge
+                    {siteSettings.featuredSong?.title || "Ram Aayenge"}
                   </h3>
                   <div className="text-xs sm:text-sm tracking-widest text-[#E5BE7A] uppercase font-medium">
                     Sonal Makwana
                   </div>
                   <div className="text-xs sm:text-[13px] text-[#A39888] font-mono">
-                    Devotional Bhajan · Bhakti Rasa
+                    {siteSettings.featuredSong?.raag || "Devotional Bhajan · Bhakti Rasa"}
                   </div>
                 </div>
               </div>
@@ -1453,7 +1503,7 @@ export default function App() {
 
               {/* Narrative Explanation */}
               <p className="text-xs sm:text-sm text-[#D8CDC0] font-light leading-relaxed border-t border-white/[0.08] pt-4 text-center">
-                A soulful devotional rendition sung with deep emotion, classical grace, and devotion by Sonal Makwana.
+                {siteSettings.featuredSong?.subtitle || "A soulful devotional rendition sung with deep emotion, classical grace, and devotion by Sonal Makwana."}
               </p>
 
               {/* Tanpura Drone Control Button */}
@@ -1552,14 +1602,14 @@ export default function App() {
           <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-6 pb-10 border-b border-white/[0.08]">
             <div>
               <h2 className="font-serif-luxury text-4xl sm:text-5xl font-light text-[#F5EBDD]">
-                The Magic of Live Music
+                {siteSettings.livePerformance?.title || "The Magic of Live Music"}
               </h2>
               <p className="text-xs sm:text-sm uppercase tracking-[0.16em] text-[#C4B7A5] mt-1 font-light">
-                Glimpses from stage shows and festival evenings
+                {siteSettings.livePerformance?.subtitle || "Glimpses from stage shows and festival evenings"}
               </p>
             </div>
             <div className="text-xs sm:text-sm text-[#C4B7A5] max-w-md font-light leading-relaxed">
-              Experience the energy, warmth, and joy that Sonal brings to every live stage performance.
+              {siteSettings.livePerformance?.description || "Experience the energy, warmth, and joy that Sonal brings to every live stage performance."}
             </div>
           </div>
         </LuxuryReveal>
@@ -1572,7 +1622,7 @@ export default function App() {
           >
             <div className="relative aspect-[21/9] w-full overflow-hidden bg-[#14110E]">
               <img
-                src="/sonal-concert-stage.png"
+                src={siteSettings.livePerformance?.thumbnail || "/sonal-concert-stage.png"}
                 alt="Sonal Makwana Live Concert Showcase"
                 className="w-full h-full object-cover filter contrast-110 brightness-85 group-hover:scale-[1.01] transition-transform duration-700 will-change-transform"
               />
@@ -1629,7 +1679,7 @@ export default function App() {
         {/* 3D Stacked Circular Stage Carousel */}
         <div className="mt-12">
           <CircularTestimonials
-            testimonials={ARCHIVE_TESTIMONIALS}
+            testimonials={stageMoments}
             autoplay={true}
             onImageClick={(idx) => setActiveLightboxIndex(idx)}
             colors={{
@@ -2060,27 +2110,30 @@ export default function App() {
             >
               <div className="w-full md:w-3/5 aspect-[16/10] bg-[#14110E] border border-white/10 overflow-hidden">
                 <img
-                  src={GALLERY_ARCHIVE[activeLightboxIndex].image}
-                  alt={GALLERY_ARCHIVE[activeLightboxIndex].title}
+                  src={stageMoments[activeLightboxIndex]?.src || GALLERY_ARCHIVE[0].image}
+                  alt={stageMoments[activeLightboxIndex]?.name || 'Stage Photo'}
                   className="w-full h-full object-cover"
+                  style={{
+                    objectPosition: stageMoments[activeLightboxIndex]?.objectPosition || 'center 20%'
+                  }}
                 />
               </div>
 
               <div className="w-full md:w-2/5 space-y-4">
                 <span className="font-mono text-xs sm:text-sm text-[#E5BE7A] font-medium">
-                  PHOTO [{GALLERY_ARCHIVE[activeLightboxIndex].number} / 06]
+                  PHOTO [{String(activeLightboxIndex + 1).padStart(2, '0')} / {String(stageMoments.length).padStart(2, '0')}]
                 </span>
 
                 <h3 className="font-serif-luxury text-2xl sm:text-3xl text-[#F5EBDD]">
-                  {GALLERY_ARCHIVE[activeLightboxIndex].title}
+                  {stageMoments[activeLightboxIndex]?.name || 'Stage Performance'}
                 </h3>
 
                 <div className="text-xs sm:text-sm text-[#E5BE7A] font-mono uppercase tracking-wider font-medium">
-                  Occasion: {GALLERY_ARCHIVE[activeLightboxIndex].category}
+                  Occasion: {stageMoments[activeLightboxIndex]?.designation || 'Live Concert'}
                 </div>
 
                 <p className="text-sm text-[#D8CDC0] font-light leading-relaxed pt-3 border-t border-white/[0.08]">
-                  Live stage performance moment by Sonal Makwana.
+                  {stageMoments[activeLightboxIndex]?.quote || 'Live stage performance moment by Sonal Makwana.'}
                 </p>
 
                 <div className="pt-4 flex items-center justify-between">
@@ -2127,7 +2180,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#E5BE7A] animate-pulse" />
                   <span className="font-mono text-xs sm:text-sm text-[#E5BE7A] uppercase tracking-wider font-semibold">
-                    Live Concert Showcase Reel
+                    {siteSettings.livePerformance?.title || "Live Concert Showcase Reel"}
                   </span>
                 </div>
                 <button
@@ -2143,8 +2196,8 @@ export default function App() {
               <div className="aspect-[16/9] w-full overflow-hidden bg-black border border-white/15 shadow-2xl">
                 <iframe
                   className="w-full h-full"
-                  src="https://www.youtube-nocookie.com/embed/RXVnBqGBi9A?autoplay=1&controls=1&rel=0"
-                  title="Sonal Makwana Live Concert Showcase Reel"
+                  src={`https://www.youtube-nocookie.com/embed/${siteSettings.livePerformance?.videoId || "RXVnBqGBi9A"}?autoplay=1&controls=1&rel=0`}
+                  title={siteSettings.livePerformance?.title || "Sonal Makwana Live Concert Showcase Reel"}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -2154,10 +2207,10 @@ export default function App() {
               <div className="flex flex-wrap items-center justify-between gap-4 pt-2 text-xs sm:text-sm">
                 <div>
                   <span className="font-serif-luxury text-xl sm:text-2xl text-[#F5EBDD] block">
-                    Sonal Makwana Live Performance
+                    {siteSettings.livePerformance?.title || "Sonal Makwana Live Performance"}
                   </span>
                   <span className="text-xs sm:text-sm uppercase tracking-wider text-[#A39888]">
-                    Classical · Devotional · Garba · Folk Raas
+                    {siteSettings.livePerformance?.subtitle || "Classical · Devotional · Garba · Folk Raas"}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -2169,7 +2222,7 @@ export default function App() {
                     <span>Return to Site</span>
                   </button>
                   <a
-                    href="https://www.youtube.com/@SonalMakwana-zb7qc"
+                    href={siteSettings.livePerformance?.channelUrl || "https://www.youtube.com/@SonalMakwana-zb7qc"}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-[#E5BE7A]/40 text-[#E5BE7A] hover:bg-[#E5BE7A] hover:text-black text-xs sm:text-[13px] uppercase tracking-wider font-mono transition-colors font-medium"
@@ -2184,13 +2237,13 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Hidden YouTube audio player stream for Ram Aayenge (No video shown) */}
+      {/* Hidden YouTube audio player stream for Featured Song */}
       <iframe
         ref={audioIframeRef}
         id="youtube-audio-stream"
-        title="Ram Aayenge Audio Stream"
+        title="Featured Song Audio Stream"
         className="opacity-0 pointer-events-none fixed -top-[2000px] -left-[2000px] w-10 h-10 -z-50"
-        src="https://www.youtube-nocookie.com/embed/1CTF9uM65b8?enablejsapi=1&controls=0&rel=0&playsinline=1"
+        src={`https://www.youtube-nocookie.com/embed/${siteSettings.featuredSong?.videoId || "1CTF9uM65b8"}?enablejsapi=1&controls=0&rel=0&playsinline=1`}
         allow="autoplay"
       />
 
