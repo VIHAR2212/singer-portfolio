@@ -337,7 +337,7 @@ export default function AdminPage() {
   const fetchGallery = async () => {
     setIsLoadingGallery(true);
     try {
-      const res = await fetch('/api/gallery');
+      const res = await fetch(`/api/gallery?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.items)) {
         setGalleryItems(data.items);
@@ -352,7 +352,7 @@ export default function AdminPage() {
   // 3. Fetch Settings
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(`/api/settings?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.settings) {
         setSettings(data.settings);

@@ -4,33 +4,38 @@ import { verifyAdminRequest } from '@/lib/auth';
 import defaultSettings from '@/data/site-settings.json';
 
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// Persistent process-level cache across edge requests
+if (!globalThis.__settingsCache) {
+  globalThis.__settingsCache = { ...defaultSettings };
+}
 
 // Helper to extract YouTube video ID from various link formats
 function extractYouTubeId(input) {
   if (!input) return '';
   const str = String(input).trim();
-  // If it's already an 11-char ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
     return str;
   }
-  // youtu.be/<id>
   const shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
   if (shortMatch) return shortMatch[1];
-  // youtube.com/watch?v=<id>
   const watchMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
   if (watchMatch) return watchMatch[1];
-  // youtube.com/embed/<id>
   const embedMatch = str.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
   if (embedMatch) return embedMatch[1];
-  // youtube.com/live/<id>
   const liveMatch = str.match(/youtube\.com\/live\/([a-zA-Z0-9_-]{11})/);
   if (liveMatch) return liveMatch[1];
 
   return str;
 }
 
-// In-memory cache for edge instances
-let cachedSettings = { ...defaultSettings };
+const noCacheHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+};
 
 export async function GET() {
   try {
@@ -41,27 +46,26 @@ export async function GET() {
         .select('*');
 
       if (!error && data && data.length > 0) {
-        const merged = { ...cachedSettings };
+        const merged = { ...globalThis.__settingsCache };
         for (const row of data) {
           if (row.key === 'livePerformance') merged.livePerformance = { ...merged.livePerformance, ...row.value };
           if (row.key === 'featuredSong') merged.featuredSong = { ...merged.featuredSong, ...row.value };
           if (row.key === 'heroPortrait') merged.heroPortrait = { ...merged.heroPortrait, ...row.value };
           if (row.key === 'riyazPhoto') merged.riyazPhoto = { ...merged.riyazPhoto, ...row.value };
         }
-        cachedSettings = merged;
-        return NextResponse.json({ success: true, settings: merged });
+        globalThis.__settingsCache = merged;
+        return NextResponse.json({ success: true, settings: merged }, { headers: noCacheHeaders });
       }
     }
 
-    return NextResponse.json({ success: true, settings: cachedSettings });
+    return NextResponse.json({ success: true, settings: globalThis.__settingsCache }, { headers: noCacheHeaders });
   } catch (err) {
     console.error('Failed to get settings:', err);
-    return NextResponse.json({ success: true, settings: cachedSettings });
+    return NextResponse.json({ success: true, settings: globalThis.__settingsCache }, { headers: noCacheHeaders });
   }
 }
 
 export async function PUT(req) {
-  // Z+ Security check: Only authenticated admins can change site settings
   const auth = await verifyAdminRequest(req);
   if (!auth.authenticated) {
     return NextResponse.json({ error: auth.error || 'Unauthorized: Admin access required.' }, { status: 401 });
@@ -71,7 +75,7 @@ export async function PUT(req) {
     const body = await req.json();
     const { livePerformance, featuredSong, heroPortrait, riyazPhoto } = body;
 
-    const updated = { ...cachedSettings };
+    const updated = { ...globalThis.__settingsCache };
 
     if (heroPortrait) {
       updated.heroPortrait = {
@@ -107,9 +111,8 @@ export async function PUT(req) {
       };
     }
 
-    cachedSettings = updated;
+    globalThis.__settingsCache = updated;
 
-    // Persist to Supabase if configured
     const supabase = getAdminClient();
     if (supabase) {
       try {
@@ -150,7 +153,7 @@ export async function PUT(req) {
             });
         }
       } catch (dbErr) {
-        console.warn('Supabase site_settings table not configured, saved to edge cache:', dbErr);
+        console.warn('Supabase site_settings table not configured, saved to global cache:', dbErr);
       }
     }
 

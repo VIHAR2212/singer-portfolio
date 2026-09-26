@@ -3,9 +3,9 @@ import { getAdminClient } from '@/lib/supabase';
 import { verifyAdminRequest } from '@/lib/auth';
 
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
-  // Z+ Security check: Only authenticated admins can upload photos
   const auth = await verifyAdminRequest(req);
   if (!auth.authenticated) {
     return NextResponse.json({ error: auth.error || 'Unauthorized: Admin access required.' }, { status: 401 });
@@ -44,7 +44,7 @@ export async function POST(req) {
       }
     }
 
-    // 2. Resilient Fallback: Convert to Base64 Data URL so upload ALWAYS works
+    // 2. Resilient Edge Fallback: Convert to Base64 Data URL (Supported everywhere with 0 external dependencies)
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binary = '';
@@ -58,7 +58,7 @@ export async function POST(req) {
       success: true,
       url: base64DataUrl,
       fileName,
-      note: 'Processed securely via local buffer'
+      note: 'Processed securely via buffer'
     });
   } catch (err) {
     console.error('File upload error:', err);

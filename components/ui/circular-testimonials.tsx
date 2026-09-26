@@ -172,7 +172,6 @@ export const CircularTestimonials = ({
             onClick={() => onImageClick?.(activeIndex)}
           >
             {testimonials.map((testimonial, index) => {
-              const webpSrc = testimonial.src.replace(/\.(png|jpg|jpeg)$/i, '.webp');
               return (
                 <div
                   key={testimonial.src + index}
@@ -186,14 +185,15 @@ export const CircularTestimonials = ({
                   }}
                 >
                   <img
-                    src={webpSrc}
+                    src={testimonial.src}
                     alt={testimonial.name}
                     loading={index === activeIndex ? "eager" : "lazy"}
                     decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 will-change-transform"
                     style={{
                       objectPosition: testimonial.objectPosition || "center 20%",
-                      transform: `scale(${testimonial.scale || 1}) rotate(${testimonial.rotation || 0}deg)`
+                      transform: `scale(${testimonial.scale || 1}) rotate(${testimonial.rotation || 0}deg)`,
+                      transformOrigin: testimonial.objectPosition || "center 20%"
                     }}
                   />
                 </div>
