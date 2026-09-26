@@ -1633,37 +1633,6 @@ export default function App() {
         id="concerts" 
         className="relative py-28 md:py-36 px-6 md:px-12 border-t border-white/[0.08] max-w-7xl mx-auto overflow-hidden"
       >
-        {/* Monumental Watermark Sliding Behind Live Section */}
-        <div className="absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden -z-0 opacity-40">
-          <motion.div
-            initial={{ x: "0%" }}
-            animate={{ x: "-50%" }}
-            transition={{
-              duration: 45,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="flex items-center whitespace-nowrap will-change-transform"
-          >
-            <div className="flex items-center shrink-0">
-              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
-                LIVE IN CONCERT
-              </span>
-              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
-                LIVE IN CONCERT
-              </span>
-            </div>
-            <div className="flex items-center shrink-0">
-              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
-                LIVE IN CONCERT
-              </span>
-              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
-                LIVE IN CONCERT
-              </span>
-            </div>
-          </motion.div>
-        </div>
-
         <LuxuryReveal>
           <div className="flex items-center gap-3 text-xs sm:text-[13px] uppercase tracking-[0.25em] text-[#E5BE7A] font-medium mb-4">
             <span className="font-mono text-sm">[04]</span>
@@ -2041,38 +2010,32 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <footer className="relative w-full border-t border-white/[0.08] overflow-hidden pt-24 sm:pt-28 pb-14 min-h-[460px]">
-        {/* Monumental Watermark Sliding Left Slowly Behind Footer Elements (Doubled Size & Seamless Marquee) */}
+      <footer className="relative w-full border-t border-white/[0.08] overflow-hidden pt-20 pb-12">
+        {/* Monumental Watermark Sliding Left Slowly Behind Footer Elements */}
         <div className="absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden -z-0">
           <motion.div
             initial={{ x: "0%" }}
             animate={{ x: "-50%" }}
             transition={{
-              duration: 45,
+              duration: 40,
               repeat: Infinity,
               ease: "linear",
             }}
             className="flex items-center whitespace-nowrap will-change-transform"
           >
             <div className="flex items-center shrink-0">
-              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
+              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
                 SONAL MAKWANA
               </span>
-              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
-                SONAL MAKWANA
-              </span>
-              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
+              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
                 SONAL MAKWANA
               </span>
             </div>
             <div className="flex items-center shrink-0">
-              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
+              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
                 SONAL MAKWANA
               </span>
-              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
-                SONAL MAKWANA
-              </span>
-              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
+              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
                 SONAL MAKWANA
               </span>
             </div>
