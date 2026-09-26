@@ -457,6 +457,21 @@ export default function App() {
   // Dynamic Stage Moments Gallery and Site Performance Settings
   const [stageMoments, setStageMoments] = useState<Testimonial[]>(ARCHIVE_TESTIMONIALS);
   const [siteSettings, setSiteSettings] = useState({
+    heroPortrait: {
+      image: "/sonal-hero-portrait.webp",
+      objectPosition: "center 20%",
+      scale: 1,
+      rotation: 0,
+      tagline: "A Voice That Brings Every Celebration to Life."
+    },
+    riyazPhoto: {
+      image: "/sonal-riyaz-academy.webp",
+      objectPosition: "center 20%",
+      scale: 1,
+      rotation: 0,
+      title: "Musical Journey & Practice",
+      subtitle: "Classical Riyaz"
+    },
     livePerformance: {
       title: "The Magic of Live Music",
       subtitle: "Glimpses from stage shows and festival evenings",
@@ -486,7 +501,9 @@ export default function App() {
             name: it.title,
             designation: it.designation || it.category || 'Live Festive Performance',
             quote: it.quote || '',
-            objectPosition: it.objectPosition || 'center 20%'
+            objectPosition: it.objectPosition || 'center 20%',
+            scale: it.scale || 1,
+            rotation: it.rotation || 0
           }));
           setStageMoments(formatted);
         }
@@ -1194,12 +1211,16 @@ export default function App() {
               {/* Inner Photographic Frame */}
               <div className="relative aspect-[3/4] overflow-hidden bg-[#14110E] border border-white/10">
                 <Image
-                  src="/sonal-hero-portrait.webp"
+                  src={siteSettings.heroPortrait?.image?.replace(/\.(png|jpg)$/i, '.webp') || "/sonal-hero-portrait.webp"}
                   alt="Sonal Makwana Official Portrait"
                   fill
                   priority
                   sizes="(max-width: 768px) 90vw, (max-width: 1200px) 45vw, 500px"
-                  className="object-cover object-center filter contrast-105 brightness-100 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
+                  className="object-cover filter contrast-105 brightness-100 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
+                  style={{
+                    objectPosition: siteSettings.heroPortrait?.objectPosition || "center 20%",
+                    transform: `scale(${siteSettings.heroPortrait?.scale || 1}) rotate(${siteSettings.heroPortrait?.rotation || 0}deg)`
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#090807] via-transparent to-transparent opacity-40 pointer-events-none z-10" />
               </div>
@@ -1266,18 +1287,22 @@ export default function App() {
               <div className="luxury-card luxury-card-hover p-3">
                 <div className="relative aspect-[4/5] overflow-hidden bg-[#14110E]">
                   <Image
-                    src="/sonal-riyaz-academy.webp"
+                    src={siteSettings.riyazPhoto?.image?.replace(/\.(png|jpg)$/i, '.webp') || "/sonal-riyaz-academy.webp"}
                     alt="Sonal Makwana Sangeet Academy Performance"
                     fill
                     loading="lazy"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 40vw, 450px"
                     className="object-cover filter contrast-105 brightness-95 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
+                    style={{
+                      objectPosition: siteSettings.riyazPhoto?.objectPosition || "center 20%",
+                      transform: `scale(${siteSettings.riyazPhoto?.scale || 1}) rotate(${siteSettings.riyazPhoto?.rotation || 0}deg)`
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B0705] via-transparent to-transparent opacity-60 pointer-events-none z-10" />
                 </div>
                 <div className="flex items-baseline justify-between text-xs sm:text-[13px] text-[#A39888] px-2 pt-3 pb-1">
-                  <span className="uppercase tracking-[0.18em] text-xs">Musical Journey & Practice</span>
-                  <span className="font-mono text-xs sm:text-[13px] text-[#E5BE7A]">Classical Riyaz</span>
+                  <span className="uppercase tracking-[0.18em] text-xs">{siteSettings.riyazPhoto?.title || "Musical Journey & Practice"}</span>
+                  <span className="font-mono text-xs sm:text-[13px] text-[#E5BE7A]">{siteSettings.riyazPhoto?.subtitle || "Classical Riyaz"}</span>
                 </div>
               </div>
             </LuxuryReveal>

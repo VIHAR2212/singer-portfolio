@@ -45,6 +45,8 @@ export async function GET() {
         for (const row of data) {
           if (row.key === 'livePerformance') merged.livePerformance = { ...merged.livePerformance, ...row.value };
           if (row.key === 'featuredSong') merged.featuredSong = { ...merged.featuredSong, ...row.value };
+          if (row.key === 'heroPortrait') merged.heroPortrait = { ...merged.heroPortrait, ...row.value };
+          if (row.key === 'riyazPhoto') merged.riyazPhoto = { ...merged.riyazPhoto, ...row.value };
         }
         cachedSettings = merged;
         return NextResponse.json({ success: true, settings: merged });
@@ -67,9 +69,23 @@ export async function PUT(req) {
 
   try {
     const body = await req.json();
-    const { livePerformance, featuredSong } = body;
+    const { livePerformance, featuredSong, heroPortrait, riyazPhoto } = body;
 
     const updated = { ...cachedSettings };
+
+    if (heroPortrait) {
+      updated.heroPortrait = {
+        ...updated.heroPortrait,
+        ...heroPortrait
+      };
+    }
+
+    if (riyazPhoto) {
+      updated.riyazPhoto = {
+        ...updated.riyazPhoto,
+        ...riyazPhoto
+      };
+    }
 
     if (livePerformance) {
       const videoId = extractYouTubeId(livePerformance.youtubeUrl || livePerformance.videoId);
@@ -97,6 +113,24 @@ export async function PUT(req) {
     const supabase = getAdminClient();
     if (supabase) {
       try {
+        if (heroPortrait) {
+          await supabase
+            .from('site_settings')
+            .upsert({ 
+              key: 'heroPortrait', 
+              value: updated.heroPortrait, 
+              updated_at: new Date().toISOString() 
+            });
+        }
+        if (riyazPhoto) {
+          await supabase
+            .from('site_settings')
+            .upsert({ 
+              key: 'riyazPhoto', 
+              value: updated.riyazPhoto, 
+              updated_at: new Date().toISOString() 
+            });
+        }
         if (livePerformance) {
           await supabase
             .from('site_settings')
@@ -122,7 +156,7 @@ export async function PUT(req) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Site performance & featured song settings updated successfully.',
+      message: 'Site settings updated successfully.',
       settings: updated 
     });
   } catch (err) {

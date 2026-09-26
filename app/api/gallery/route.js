@@ -69,7 +69,9 @@ export async function POST(req) {
       designation: designation || 'Live Festive Performance',
       quote: quote ? String(quote).trim() : '',
       image: String(image).trim(),
-      objectPosition: objectPosition || 'center 20%', // Custom manual frame focal point to prevent head cut-off!
+      objectPosition: objectPosition || '50% 20%', // Custom manual frame focal point to prevent head cut-off!
+      scale: typeof body.scale === 'number' ? body.scale : 1,
+      rotation: typeof body.rotation === 'number' ? body.rotation : 0,
       createdAt: new Date().toISOString()
     };
 
@@ -110,7 +112,7 @@ export async function PUT(req) {
 
   try {
     const body = await req.json();
-    const { id, title, category, designation, quote, image, objectPosition, items: newOrderedItems } = body;
+    const { id, title, category, designation, quote, image, objectPosition, scale, rotation, items: newOrderedItems } = body;
     const supabase = getAdminClient();
 
     // Reordering multiple items
@@ -118,7 +120,9 @@ export async function PUT(req) {
       const renumbered = newOrderedItems.map((item, idx) => ({
         ...item,
         number: String(idx + 1).padStart(2, '0'),
-        objectPosition: item.objectPosition || 'center 20%'
+        objectPosition: item.objectPosition || '50% 20%',
+        scale: typeof item.scale === 'number' ? item.scale : 1,
+        rotation: typeof item.rotation === 'number' ? item.rotation : 0
       }));
 
       inMemoryGallery = renumbered;
@@ -162,7 +166,9 @@ export async function PUT(req) {
           ...(designation !== undefined && { designation: String(designation).trim() }),
           ...(quote !== undefined && { quote: String(quote).trim() }),
           ...(image !== undefined && { image: String(image).trim() }),
-          ...(objectPosition !== undefined && { objectPosition })
+          ...(objectPosition !== undefined && { objectPosition }),
+          ...(scale !== undefined && { scale: Number(scale) }),
+          ...(rotation !== undefined && { rotation: Number(rotation) })
         };
       }
       return item;

@@ -33,9 +33,11 @@ import {
   Layers,
   Crop,
   GripVertical,
-  Move
+  Move,
+  RotateCw,
+  Minus,
+  Camera
 } from 'lucide-react';
-import ImageCropperModal from '@/components/admin/ImageCropperModal';
 
 interface Inquiry {
   id: string;
@@ -60,9 +62,26 @@ interface GalleryItem {
   quote: string;
   image: string;
   objectPosition?: string;
+  scale?: number;
+  rotation?: number;
 }
 
 interface SiteSettings {
+  heroPortrait?: {
+    image: string;
+    objectPosition?: string;
+    scale?: number;
+    rotation?: number;
+    tagline?: string;
+  };
+  riyazPhoto?: {
+    image: string;
+    objectPosition?: string;
+    scale?: number;
+    rotation?: number;
+    title?: string;
+    subtitle?: string;
+  };
   livePerformance: {
     title: string;
     subtitle: string;
@@ -92,6 +111,8 @@ const CATEGORIES = [
 
 export default function AdminPage() {
   // Authentication & Security State
+  // User explicitly requested: "when i go to admin page it doesnot ask for password"
+  // So we require entering the passcode whenever visiting the admin page!
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [passcode, setPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
@@ -99,7 +120,7 @@ export default function AdminPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'inquiries' | 'gallery' | 'video' | 'song' | 'security'>('inquiries');
+  const [activeTab, setActiveTab] = useState<'inquiries' | 'featured-photos' | 'gallery' | 'video' | 'song' | 'security'>('inquiries');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Inquiries State
@@ -116,34 +137,78 @@ export default function AdminPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
 
-  // Gallery Form State with Manual Frame / Head Position
+  // Gallery Modal: Direct 2D Pan, Resizing, and Rotation inside exact [4:3] main-page frame
   const [formData, setFormData] = useState({
     title: '',
     category: 'Navratri',
     designation: 'Live Festive Performance',
     quote: '',
     image: '',
-    objectPosition: 'center 20%'
+    objectPosition: '50% 20%',
+    scale: 1,
+    rotation: 0
   });
-  const [focalPercent, setFocalPercent] = useState<number>(20);
+  const [focalX, setFocalX] = useState<number>(50);
+  const [focalY, setFocalY] = useState<number>(20);
+  const [modalScale, setModalScale] = useState<number>(1);
+  const [modalRotation, setModalRotation] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Image Cropping & Resizing Modal State (UX Reference Image 2)
-  const [showCropper, setShowCropper] = useState<boolean>(false);
-  const [cropImageSrc, setCropImageSrc] = useState<string>('');
+  // Direct Drag inside Gallery Modal Preview Frame
+  const [isFrameDragging, setIsFrameDragging] = useState(false);
+  const dragStartRef = useRef<{ clientX: number; clientY: number; initX: number; initY: number }>({ clientX: 0, clientY: 0, initX: 50, initY: 20 });
+  const simulationRef = useRef<HTMLDivElement | null>(null);
 
   // Drag & Drop Gallery Card Rearranging State
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(null);
 
-  // Live Frame Simulation Direct Dragging State
-  const [isSimulationDragging, setIsSimulationDragging] = useState<boolean>(false);
-  const simulationRef = useRef<HTMLDivElement | null>(null);
+  // Featured Photos State: Hero Official Portrait & Musical Journey / Riyaz Photo
+  const [heroForm, setHeroForm] = useState({
+    image: "/sonal-hero-portrait.webp",
+    focalX: 50,
+    focalY: 20,
+    scale: 1,
+    rotation: 0
+  });
+  const [isHeroDragging, setIsHeroDragging] = useState(false);
+  const heroDragStartRef = useRef<{ clientX: number; clientY: number; initX: number; initY: number }>({ clientX: 0, clientY: 0, initX: 50, initY: 20 });
+  const heroSimulationRef = useRef<HTMLDivElement | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Settings State (Live Performance & Featured Song)
+  const [riyazForm, setRiyazForm] = useState({
+    image: "/sonal-riyaz-academy.webp",
+    focalX: 50,
+    focalY: 20,
+    scale: 1,
+    rotation: 0,
+    title: "Musical Journey & Practice",
+    subtitle: "Classical Riyaz"
+  });
+  const [isRiyazDragging, setIsRiyazDragging] = useState(false);
+  const riyazDragStartRef = useRef<{ clientX: number; clientY: number; initX: number; initY: number }>({ clientX: 0, clientY: 0, initX: 50, initY: 20 });
+  const riyazSimulationRef = useRef<HTMLDivElement | null>(null);
+  const riyazFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Settings State (Hero Portrait, Riyaz Photo, Live Video, Featured Song)
   const [settings, setSettings] = useState<SiteSettings>({
+    heroPortrait: {
+      image: "/sonal-hero-portrait.webp",
+      objectPosition: "center 20%",
+      scale: 1,
+      rotation: 0,
+      tagline: "A Voice That Brings Every Celebration to Life."
+    },
+    riyazPhoto: {
+      image: "/sonal-riyaz-academy.webp",
+      objectPosition: "center 20%",
+      scale: 1,
+      rotation: 0,
+      title: "Musical Journey & Practice",
+      subtitle: "Classical Riyaz"
+    },
     livePerformance: {
       title: "The Magic of Live Music",
       subtitle: "Glimpses from stage shows and festival evenings",
@@ -151,7 +216,7 @@ export default function AdminPage() {
       youtubeUrl: "https://www.youtube.com/watch?v=RXVnBqGBi9A",
       videoId: "RXVnBqGBi9A",
       channelUrl: "https://www.youtube.com/@SonalMakwana-zb7qc",
-      thumbnail: "/sonal-concert-stage.png"
+      thumbnail: "/sonal-concert-stage.webp"
     },
     featuredSong: {
       title: "Ram Aayenge",
@@ -164,9 +229,10 @@ export default function AdminPage() {
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  // Check auth session on mount via server-side verification
+  // Passcode gate: Always prompt for passcode when visiting /admin as requested by user
+  // ("also when i go to admin page it doesnot ask for password")
   useEffect(() => {
-    checkServerSession();
+    // Session is locked by default upon visiting /admin until passcode is submitted
   }, []);
 
   const showToast = (msg: string) => {
@@ -290,6 +356,50 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success && data.settings) {
         setSettings(data.settings);
+        if (data.settings.heroPortrait) {
+          const hp = data.settings.heroPortrait;
+          let fx = 50, fy = 20;
+          if (hp.objectPosition) {
+            const parts = hp.objectPosition.split(' ');
+            if (parts.length === 2) {
+              fx = parseFloat(parts[0]) || 50;
+              fy = parseFloat(parts[1]) || 20;
+            } else {
+              const match = hp.objectPosition.match(/(\d+)%/);
+              if (match) fy = parseInt(match[1], 10);
+            }
+          }
+          setHeroForm({
+            image: hp.image || '/sonal-hero-portrait.webp',
+            focalX: fx,
+            focalY: fy,
+            scale: hp.scale ?? 1,
+            rotation: hp.rotation ?? 0
+          });
+        }
+        if (data.settings.riyazPhoto) {
+          const rp = data.settings.riyazPhoto;
+          let fx = 50, fy = 20;
+          if (rp.objectPosition) {
+            const parts = rp.objectPosition.split(' ');
+            if (parts.length === 2) {
+              fx = parseFloat(parts[0]) || 50;
+              fy = parseFloat(parts[1]) || 20;
+            } else {
+              const match = rp.objectPosition.match(/(\d+)%/);
+              if (match) fy = parseInt(match[1], 10);
+            }
+          }
+          setRiyazForm({
+            image: rp.image || '/sonal-riyaz-academy.webp',
+            focalX: fx,
+            focalY: fy,
+            scale: rp.scale ?? 1,
+            rotation: rp.rotation ?? 0,
+            title: rp.title || 'Musical Journey & Practice',
+            subtitle: rp.subtitle || 'Classical Riyaz'
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
@@ -381,81 +491,227 @@ export default function AdminPage() {
     showToast('Downloaded bookings to CSV.');
   };
 
-  // Gallery: File selection with automatic crop modal opening
+  // Gallery: File selection with direct upload and immediate preview
   const handleFileSelect = (file: File) => {
     setUploadError('');
     if (!file.type.startsWith('image/')) {
       setUploadError('Please select a valid image file (JPG, PNG, WebP).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setCropImageSrc(reader.result as string);
-        setShowCropper(true);
-      }
-    };
-    reader.onerror = () => {
-      setUploadError('Failed to read image file.');
-    };
-    reader.readAsDataURL(file);
+    handleFileUpload(file);
   };
 
-  // Gallery: Crop confirmed via Green Checkmark in ImageCropperModal
-  const handleCropComplete = async (croppedDataUrl: string, blob: Blob) => {
-    setShowCropper(false);
-    // 1. Instantly set preview data URL in formData so user sees results with 0 delay
-    setFormData(prev => ({ ...prev, image: croppedDataUrl }));
-    showToast('Photo cropped and framed. Uploading to storage...');
+  // Direct In-Frame 2D Drag for Gallery Modal (Aspect 4:3 matching main page)
+  const handleFramePointerDown = (e: React.PointerEvent) => {
+    setIsFrameDragging(true);
+    dragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      initX: focalX,
+      initY: focalY
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
 
-    // 2. Upload cropped blob to server/Supabase
+  const handleFramePointerMove = (e: React.PointerEvent) => {
+    if (!isFrameDragging || !simulationRef.current) return;
+    const rect = simulationRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - dragStartRef.current.clientX;
+    const deltaY = e.clientY - dragStartRef.current.clientY;
+
+    const newX = Math.min(Math.max(Math.round(dragStartRef.current.initX - (deltaX / rect.width) * 100), 0), 100);
+    const newY = Math.min(Math.max(Math.round(dragStartRef.current.initY - (deltaY / rect.height) * 100), 0), 100);
+    setFocalX(newX);
+    setFocalY(newY);
+  };
+
+  const handleFramePointerUp = (e: React.PointerEvent) => {
+    setIsFrameDragging(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
+  const handleFrameWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    setModalScale(prev => Math.min(Math.max(Number((prev + delta).toFixed(2)), 1), 3));
+  };
+
+  // Direct In-Frame 2D Drag for Hero Portrait (Aspect 3:4 matching main page)
+  const handleHeroPointerDown = (e: React.PointerEvent) => {
+    setIsHeroDragging(true);
+    heroDragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      initX: heroForm.focalX,
+      initY: heroForm.focalY
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handleHeroPointerMove = (e: React.PointerEvent) => {
+    if (!isHeroDragging || !heroSimulationRef.current) return;
+    const rect = heroSimulationRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - heroDragStartRef.current.clientX;
+    const deltaY = e.clientY - heroDragStartRef.current.clientY;
+
+    const newX = Math.min(Math.max(Math.round(heroDragStartRef.current.initX - (deltaX / rect.width) * 100), 0), 100);
+    const newY = Math.min(Math.max(Math.round(heroDragStartRef.current.initY - (deltaY / rect.height) * 100), 0), 100);
+    setHeroForm(prev => ({ ...prev, focalX: newX, focalY: newY }));
+  };
+
+  const handleHeroPointerUp = (e: React.PointerEvent) => {
+    setIsHeroDragging(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
+  const handleHeroWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    setHeroForm(prev => ({
+      ...prev,
+      scale: Math.min(Math.max(Number(((prev.scale ?? 1) + delta).toFixed(2)), 1), 3)
+    }));
+  };
+
+  // Direct In-Frame 2D Drag for Musical Journey & Riyaz Photo (Aspect 4:5 matching main page)
+  const handleRiyazPointerDown = (e: React.PointerEvent) => {
+    setIsRiyazDragging(true);
+    riyazDragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      initX: riyazForm.focalX,
+      initY: riyazForm.focalY
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handleRiyazPointerMove = (e: React.PointerEvent) => {
+    if (!isRiyazDragging || !riyazSimulationRef.current) return;
+    const rect = riyazSimulationRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - riyazDragStartRef.current.clientX;
+    const deltaY = e.clientY - riyazDragStartRef.current.clientY;
+
+    const newX = Math.min(Math.max(Math.round(riyazDragStartRef.current.initX - (deltaX / rect.width) * 100), 0), 100);
+    const newY = Math.min(Math.max(Math.round(riyazDragStartRef.current.initY - (deltaY / rect.height) * 100), 0), 100);
+    setRiyazForm(prev => ({ ...prev, focalX: newX, focalY: newY }));
+  };
+
+  const handleRiyazPointerUp = (e: React.PointerEvent) => {
+    setIsRiyazDragging(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
+  const handleRiyazWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+    setRiyazForm(prev => ({
+      ...prev,
+      scale: Math.min(Math.max(Number(((prev.scale ?? 1) + delta).toFixed(2)), 1), 3)
+    }));
+  };
+
+  const handleHeroFileUpload = async (file: File) => {
     setIsUploading(true);
     setUploadError('');
+    const previewUrl = URL.createObjectURL(file);
+    setHeroForm(prev => ({ ...prev, image: previewUrl }));
     try {
       const form = new FormData();
-      const file = new File([blob], `stage-crop-${Date.now()}.webp`, { type: 'image/webp' });
       form.append('file', file);
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: form
-      });
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
       const data = await res.json();
       if (data.success && data.url) {
-        setFormData(prev => ({ ...prev, image: data.url }));
-        showToast('Cropped stage photo uploaded successfully.');
+        setHeroForm(prev => ({ ...prev, image: data.url }));
+        showToast('Hero portrait photo uploaded.');
       } else {
-        console.warn('Upload fallback to local cropped data URL');
+        setUploadError(data.error || 'Upload failed');
       }
     } catch {
-      console.warn('Network upload fallback to local cropped data URL');
+      setUploadError('Network error uploading image.');
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Direct Vertical Drag inside Live Frame Simulation Preview Box
-  const handleSimulationPointerDown = (e: React.PointerEvent) => {
-    setIsSimulationDragging(true);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    updateFocalFromPointer(e.clientY);
+  const handleRiyazFileUpload = async (file: File) => {
+    setIsUploading(true);
+    setUploadError('');
+    const previewUrl = URL.createObjectURL(file);
+    setRiyazForm(prev => ({ ...prev, image: previewUrl }));
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setRiyazForm(prev => ({ ...prev, image: data.url }));
+        showToast('Musical journey photo uploaded.');
+      } else {
+        setUploadError(data.error || 'Upload failed');
+      }
+    } catch {
+      setUploadError('Network error uploading image.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleSimulationPointerMove = (e: React.PointerEvent) => {
-    if (!isSimulationDragging) return;
-    updateFocalFromPointer(e.clientY);
+  const handleSaveHeroPortrait = async () => {
+    setIsSavingSettings(true);
+    try {
+      const heroPayload = {
+        image: heroForm.image,
+        objectPosition: `${heroForm.focalX}% ${heroForm.focalY}%`,
+        scale: heroForm.scale ?? 1,
+        rotation: heroForm.rotation ?? 0
+      };
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ heroPortrait: heroPayload })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSettings(prev => ({ ...prev, heroPortrait: heroPayload }));
+        showToast('Official Hero Portrait updated on live website!');
+      } else {
+        alert(data.error || 'Failed to update hero portrait');
+      }
+    } catch {
+      alert('Error updating hero portrait.');
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
-  const handleSimulationPointerUp = (e: React.PointerEvent) => {
-    setIsSimulationDragging(false);
-    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
-  };
-
-  const updateFocalFromPointer = (clientY: number) => {
-    if (!simulationRef.current) return;
-    const rect = simulationRef.current.getBoundingClientRect();
-    const relativeY = clientY - rect.top;
-    const percent = Math.min(Math.max(Math.round((relativeY / rect.height) * 100), 0), 100);
-    setFocalPercent(percent);
+  const handleSaveRiyazPhoto = async () => {
+    setIsSavingSettings(true);
+    try {
+      const riyazPayload = {
+        image: riyazForm.image,
+        objectPosition: `${riyazForm.focalX}% ${riyazForm.focalY}%`,
+        scale: riyazForm.scale ?? 1,
+        rotation: riyazForm.rotation ?? 0,
+        title: riyazForm.title,
+        subtitle: riyazForm.subtitle
+      };
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ riyazPhoto: riyazPayload })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSettings(prev => ({ ...prev, riyazPhoto: riyazPayload }));
+        showToast('Musical Journey photo updated on live website!');
+      } else {
+        alert(data.error || 'Failed to update musical journey photo');
+      }
+    } catch {
+      alert('Error updating musical journey photo.');
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   // Drag and Drop Gallery Cards Rearranging
@@ -542,7 +798,7 @@ export default function AdminPage() {
     }
   };
 
-  // Gallery: Save item (Add or Edit) with objectPosition (Head & Frame alignment)
+  // Gallery: Save item (Add or Edit) with 2D position, direct scale, and rotation
   const handleSaveGallery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.image) {
@@ -552,7 +808,9 @@ export default function AdminPage() {
 
     const payload = {
       ...formData,
-      objectPosition: `center ${focalPercent}%`
+      objectPosition: `${focalX}% ${focalY}%`,
+      scale: modalScale,
+      rotation: modalRotation
     };
 
     try {
@@ -635,19 +893,30 @@ export default function AdminPage() {
       designation: 'Live Festive Performance',
       quote: '',
       image: '',
-      objectPosition: 'center 20%'
+      objectPosition: '50% 20%',
+      scale: 1,
+      rotation: 0
     });
-    setFocalPercent(20);
+    setFocalX(50);
+    setFocalY(20);
+    setModalScale(1);
+    setModalRotation(0);
     setUploadError('');
     setShowAddModal(true);
   };
 
   const openEditModal = (item: GalleryItem) => {
     setEditingItem(item);
-    let initialFocal = 20;
+    let fx = 50, fy = 20;
     if (item.objectPosition) {
-      const match = item.objectPosition.match(/(\d+)%/);
-      if (match) initialFocal = parseInt(match[1], 10);
+      const parts = item.objectPosition.split(' ');
+      if (parts.length === 2) {
+        fx = parseFloat(parts[0]) || 50;
+        fy = parseFloat(parts[1]) || 20;
+      } else {
+        const match = item.objectPosition.match(/(\d+)%/);
+        if (match) fy = parseInt(match[1], 10);
+      }
     }
     setFormData({
       title: item.title,
@@ -655,9 +924,14 @@ export default function AdminPage() {
       designation: item.designation,
       quote: item.quote,
       image: item.image,
-      objectPosition: item.objectPosition || 'center 20%'
+      objectPosition: item.objectPosition || '50% 20%',
+      scale: item.scale ?? 1,
+      rotation: item.rotation ?? 0
     });
-    setFocalPercent(initialFocal);
+    setFocalX(fx);
+    setFocalY(fy);
+    setModalScale(item.scale ?? 1);
+    setModalRotation(item.rotation ?? 0);
     setUploadError('');
     setShowAddModal(true);
   };
@@ -879,6 +1153,18 @@ export default function AdminPage() {
             <ImageIcon className="w-4 h-4 text-zinc-400" />
             <span>Moments on Stage</span>
             <span className="text-xs text-zinc-500">({galleryItems.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('featured-photos')}
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+              activeTab === 'featured-photos'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Camera className="w-4 h-4 text-zinc-400" />
+            <span>Featured Photos</span>
           </button>
 
           <button
@@ -1167,6 +1453,469 @@ export default function AdminPage() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB: FEATURED KEY PHOTOS (HERO PORTRAIT 3:4 & MUSICAL RIYAZ 4:5)        */}
+        {/* ========================================================================= */}
+        {activeTab === 'featured-photos' && (
+          <div className="space-y-8">
+            <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800">
+              <h2 className="text-xl font-semibold text-zinc-100 flex items-center gap-2">
+                <Camera className="w-5 h-5 text-[#E5BE7A]" />
+                <span>Featured Website Photos</span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                Directly adjust framing, pan 2D position by dragging, zoom/resize, and rotate the key portrait photos displayed on the main website. The frame sizes below match the exact proportions shown on the live site.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* PHOTO 1: HERO OFFICIAL PORTRAIT (ASPECT 3:4) */}
+              <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-4 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+                    <div>
+                      <h3 className="text-base font-semibold text-zinc-100">
+                        Official Hero Portrait
+                      </h3>
+                      <p className="text-xs text-zinc-400">
+                        Hero section luxury presentation photo
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-[#E5BE7A] border border-amber-500/30">
+                      3:4 Aspect Ratio
+                    </span>
+                  </div>
+
+                  {/* Direct Draggable Frame in Exact 3:4 Ratio */}
+                  <div className="flex justify-center py-2">
+                    <div
+                      ref={heroSimulationRef}
+                      onPointerDown={handleHeroPointerDown}
+                      onPointerMove={handleHeroPointerMove}
+                      onPointerUp={handleHeroPointerUp}
+                      onWheel={handleHeroWheel}
+                      className="relative w-full max-w-[280px] aspect-[3/4] rounded-lg overflow-hidden bg-black border border-amber-500/40 shadow-2xl cursor-grab active:cursor-grabbing group select-none touch-none"
+                      title="Drag directly on photo to pan (X & Y) • Scroll to zoom"
+                    >
+                      <img
+                        src={heroForm.image}
+                        alt="Hero Portrait Preview"
+                        draggable={false}
+                        className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
+                        style={{
+                          objectPosition: `${heroForm.focalX}% ${heroForm.focalY}%`,
+                          transform: `scale(${heroForm.scale ?? 1}) rotate(${heroForm.rotation ?? 0}deg)`,
+                          transformOrigin: `${heroForm.focalX}% ${heroForm.focalY}%`
+                        }}
+                      />
+
+                      {/* Golden Registration Corners matching main page */}
+                      <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-[#E5BE7A] pointer-events-none" />
+                      <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-[#E5BE7A] pointer-events-none" />
+                      <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-[#E5BE7A] pointer-events-none" />
+                      <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-[#E5BE7A] pointer-events-none" />
+
+                      {/* Guide badge */}
+                      <div className="absolute top-3 left-3 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300 pointer-events-none flex items-center gap-1 backdrop-blur-sm border border-zinc-700/60">
+                        <Move className="w-2.5 h-2.5 text-[#E5BE7A]" />
+                        <span>Drag to pan</span>
+                      </div>
+
+                      {/* Center Hover Cue */}
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <span className="text-[11px] font-medium bg-black/85 text-zinc-200 px-3 py-1 rounded-full border border-zinc-700 backdrop-blur-sm shadow-md flex items-center gap-1.5">
+                          <Move className="w-3 h-3 text-[#E5BE7A]" />
+                          <span>Drag in any direction</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Positioning & Zoom Bar */}
+                  <div className="space-y-2.5 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-400 font-mono text-[11px]">
+                        Focal: {heroForm.focalX}% X, {heroForm.focalY}% Y | Zoom: {(heroForm.scale ?? 1).toFixed(2)}x
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setHeroForm(prev => ({ ...prev, rotation: ((prev.rotation ?? 0) + 90) % 360 }))}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[#E5BE7A] border border-[#E5BE7A]/30 flex items-center gap-1.5 font-medium transition-colors text-xs active:scale-95 shadow-sm"
+                        title="Rotate photo 90 degrees clockwise"
+                      >
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Rotate 90° ({heroForm.rotation ?? 0}°)</span>
+                      </button>
+                    </div>
+
+                    {/* Zoom / Scale Slider */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                        <span>Resize / Zoom:</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setHeroForm(prev => ({ ...prev, scale: Math.max(Number(((prev.scale ?? 1) - 0.1).toFixed(2)), 1) }))}
+                            className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHeroForm(prev => ({ ...prev, scale: 1 }))}
+                            className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px]"
+                          >
+                            1.0x
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHeroForm(prev => ({ ...prev, scale: Math.min(Number(((prev.scale ?? 1) + 0.1).toFixed(2)), 3) }))}
+                            className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.05}
+                        value={heroForm.scale ?? 1}
+                        onChange={(e) => setHeroForm(prev => ({ ...prev, scale: parseFloat(e.target.value) }))}
+                        className="w-full accent-[#E5BE7A] cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex items-center justify-between pt-1 border-t border-zinc-800 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-zinc-500 text-[11px]">Align:</span>
+                        <button
+                          type="button"
+                          onClick={() => setHeroForm(prev => ({ ...prev, focalX: 50, focalY: 15 }))}
+                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px]"
+                        >
+                          Head Focus
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHeroForm(prev => ({ ...prev, focalX: 50, focalY: 25 }))}
+                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px]"
+                        >
+                          Upper Body
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHeroForm(prev => ({ ...prev, focalX: 50, focalY: 50 }))}
+                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px]"
+                        >
+                          Center
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setHeroForm(prev => ({ ...prev, focalX: 50, focalY: 20, scale: 1, rotation: 0 }))}
+                        className="text-[11px] text-zinc-400 hover:text-zinc-200 underline"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Image Source & Upload */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-300 block">
+                      Hero Portrait Image URL / Upload
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={heroForm.image}
+                        onChange={(e) => setHeroForm(prev => ({ ...prev, image: e.target.value }))}
+                        className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-xs font-mono text-zinc-100"
+                        placeholder="Image URL or upload..."
+                      />
+                      <input
+                        type="file"
+                        ref={heroFileInputRef}
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleHeroFileUpload(e.target.files[0]);
+                            e.target.value = '';
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => heroFileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-800/80">
+                  <button
+                    type="button"
+                    onClick={handleSaveHeroPortrait}
+                    disabled={isSavingSettings}
+                    className="w-full py-2.5 bg-white hover:bg-zinc-200 active:scale-[0.98] text-zinc-950 font-medium text-xs sm:text-sm rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                  >
+                    {isSavingSettings ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    <span>Save Hero Portrait Changes</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* PHOTO 2: MUSICAL JOURNEY & RIYAZ PHOTO (ASPECT 4:5) */}
+              <div className="p-5 rounded-xl bg-[#121215] border border-zinc-800 space-y-4 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+                    <div>
+                      <h3 className="text-base font-semibold text-zinc-100">
+                        Musical Journey & Practice Photo
+                      </h3>
+                      <p className="text-xs text-zinc-400">
+                        Classical Riyaz & Academy presentation card
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-[#E5BE7A] border border-amber-500/30">
+                      4:5 Aspect Ratio
+                    </span>
+                  </div>
+
+                  {/* Direct Draggable Frame in Exact 4:5 Ratio */}
+                  <div className="flex justify-center py-2">
+                    <div
+                      ref={riyazSimulationRef}
+                      onPointerDown={handleRiyazPointerDown}
+                      onPointerMove={handleRiyazPointerMove}
+                      onPointerUp={handleRiyazPointerUp}
+                      onWheel={handleRiyazWheel}
+                      className="relative w-full max-w-[280px] aspect-[4/5] rounded-xl overflow-hidden bg-black border border-amber-900/40 shadow-2xl cursor-grab active:cursor-grabbing group select-none touch-none"
+                      title="Drag directly on photo to pan (X & Y) • Scroll to zoom"
+                    >
+                      <img
+                        src={riyazForm.image}
+                        alt="Riyaz Photo Preview"
+                        draggable={false}
+                        className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
+                        style={{
+                          objectPosition: `${riyazForm.focalX}% ${riyazForm.focalY}%`,
+                          transform: `scale(${riyazForm.scale ?? 1}) rotate(${riyazForm.rotation ?? 0}deg)`,
+                          transformOrigin: `${riyazForm.focalX}% ${riyazForm.focalY}%`
+                        }}
+                      />
+
+                      {/* Main-Page Overlay Bar exactly like live site */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent p-3 pt-6 pointer-events-none flex items-center justify-between text-[11px] border-t border-amber-900/20">
+                        <span className="text-stone-300 font-sans tracking-wider uppercase text-[10px]">
+                          {riyazForm.title || "Musical Journey & Practice"}
+                        </span>
+                        <span className="text-[#E5BE7A] font-serif font-medium text-[11px]">
+                          {riyazForm.subtitle || "Classical Riyaz"}
+                        </span>
+                      </div>
+
+                      {/* Guide badge */}
+                      <div className="absolute top-3 left-3 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300 pointer-events-none flex items-center gap-1 backdrop-blur-sm border border-zinc-700/60">
+                        <Move className="w-2.5 h-2.5 text-[#E5BE7A]" />
+                        <span>Drag to pan</span>
+                      </div>
+
+                      {/* Center Hover Cue */}
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <span className="text-[11px] font-medium bg-black/85 text-zinc-200 px-3 py-1 rounded-full border border-zinc-700 backdrop-blur-sm shadow-md flex items-center gap-1.5">
+                          <Move className="w-3 h-3 text-[#E5BE7A]" />
+                          <span>Drag in any direction</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Positioning & Zoom Bar */}
+                  <div className="space-y-2.5 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-400 font-mono text-[11px]">
+                        Focal: {riyazForm.focalX}% X, {riyazForm.focalY}% Y | Zoom: {(riyazForm.scale ?? 1).toFixed(2)}x
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setRiyazForm(prev => ({ ...prev, rotation: ((prev.rotation ?? 0) + 90) % 360 }))}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[#E5BE7A] border border-[#E5BE7A]/30 flex items-center gap-1.5 font-medium transition-colors text-xs active:scale-95 shadow-sm"
+                        title="Rotate photo 90 degrees clockwise"
+                      >
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Rotate 90° ({riyazForm.rotation ?? 0}°)</span>
+                      </button>
+                    </div>
+
+                    {/* Zoom / Scale Slider */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                        <span>Resize / Zoom:</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setRiyazForm(prev => ({ ...prev, scale: Math.max(Number(((prev.scale ?? 1) - 0.1).toFixed(2)), 1) }))}
+                            className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRiyazForm(prev => ({ ...prev, scale: 1 }))}
+                            className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px]"
+                          >
+                            1.0x
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRiyazForm(prev => ({ ...prev, scale: Math.min(Number(((prev.scale ?? 1) + 0.1).toFixed(2)), 3) }))}
+                            className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={0.05}
+                        value={riyazForm.scale ?? 1}
+                        onChange={(e) => setRiyazForm(prev => ({ ...prev, scale: parseFloat(e.target.value) }))}
+                        className="w-full accent-[#E5BE7A] cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex items-center justify-between pt-1 border-t border-zinc-800 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-zinc-500 text-[11px]">Align:</span>
+                        <button
+                          type="button"
+                          onClick={() => setRiyazForm(prev => ({ ...prev, focalX: 50, focalY: 15 }))}
+                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px]"
+                        >
+                          Head Focus
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRiyazForm(prev => ({ ...prev, focalX: 50, focalY: 25 }))}
+                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px]"
+                        >
+                          Upper Body
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRiyazForm(prev => ({ ...prev, focalX: 50, focalY: 50 }))}
+                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px]"
+                        >
+                          Center
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRiyazForm(prev => ({ ...prev, focalX: 50, focalY: 20, scale: 1, rotation: 0 }))}
+                        className="text-[11px] text-zinc-400 hover:text-zinc-200 underline"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Image Source & Upload */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-300 block">
+                      Musical Journey Image URL / Upload
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={riyazForm.image}
+                        onChange={(e) => setRiyazForm(prev => ({ ...prev, image: e.target.value }))}
+                        className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-800 focus:border-zinc-500 focus:outline-none rounded-lg text-xs font-mono text-zinc-100"
+                        placeholder="Image URL or upload..."
+                      />
+                      <input
+                        type="file"
+                        ref={riyazFileInputRef}
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            handleRiyazFileUpload(e.target.files[0]);
+                            e.target.value = '';
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => riyazFileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Captions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-400 block">
+                        Overlay Title
+                      </label>
+                      <input
+                        type="text"
+                        value={riyazForm.title}
+                        onChange={(e) => setRiyazForm(prev => ({ ...prev, title: e.target.value }))}
+                        className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-100"
+                        placeholder="e.g. Musical Journey & Practice"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-400 block">
+                        Overlay Subtitle
+                      </label>
+                      <input
+                        type="text"
+                        value={riyazForm.subtitle}
+                        onChange={(e) => setRiyazForm(prev => ({ ...prev, subtitle: e.target.value }))}
+                        className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-100"
+                        placeholder="e.g. Classical Riyaz"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-800/80">
+                  <button
+                    type="button"
+                    onClick={handleSaveRiyazPhoto}
+                    disabled={isSavingSettings}
+                    className="w-full py-2.5 bg-white hover:bg-zinc-200 active:scale-[0.98] text-zinc-950 font-medium text-xs sm:text-sm rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                  >
+                    {isSavingSettings ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    <span>Save Musical Journey Photo Changes</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
 
@@ -1729,19 +2478,20 @@ export default function AdminPage() {
                     <span>{isUploading ? 'Uploading...' : 'Upload'}</span>
                   </button>
 
-                  {/* Quick Crop & Resize Button when image is available */}
+                  {/* Quick Reset Framing button when image is loaded */}
                   {formData.image && (
                     <button
                       type="button"
                       onClick={() => {
-                        setCropImageSrc(formData.image);
-                        setShowCropper(true);
+                        setFocalX(50);
+                        setFocalY(20);
+                        setModalScale(1);
+                        setModalRotation(0);
                       }}
-                      className="px-3 py-2 bg-[#E5BE7A]/15 hover:bg-[#E5BE7A]/25 text-[#E5BE7A] border border-[#E5BE7A]/40 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 active:scale-95 shadow-sm"
-                      title="Open rectangular cropper to drag, resize, and adjust frame"
+                      className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-lg text-xs font-medium transition-all shrink-0 active:scale-95"
+                      title="Reset framing, zoom, and rotation"
                     >
-                      <Crop className="w-3.5 h-3.5" />
-                      <span>Crop / Resize</span>
+                      Reset Frame
                     </button>
                   )}
                 </div>
@@ -1751,103 +2501,151 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* LIVE FRAME PREVIEW & INTERACTIVE DRAGGABLE FRAME SIMULATION */}
+              {/* LIVE FRAME PREVIEW IN EXACT [4:3] MAIN-PAGE RATIO WITH DIRECT DRAGGING, RESIZING, AND ROTATION */}
               {formData.image && (
-                <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-                      Frame & Head Position (Vertical Alignment)
-                    </span>
+                <div className="p-4 rounded-xl bg-zinc-900/70 border border-zinc-800 space-y-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-300">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <Sliders className="w-3.5 h-3.5 text-[#E5BE7A]" />
+                      <span>Live Frame Preview & Alignment (4:3 Stage Aspect Ratio)</span>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-zinc-400">Offset: {focalPercent}%</span>
+                      <span className="font-mono text-zinc-400 text-[11px]">
+                        Focal: {focalX}% X, {focalY}% Y | Zoom: {modalScale.toFixed(2)}x
+                      </span>
                       <button
                         type="button"
-                        onClick={() => {
-                          setCropImageSrc(formData.image);
-                          setShowCropper(true);
-                        }}
-                        className="px-2 py-0.5 rounded text-[11px] bg-zinc-800 hover:bg-zinc-700 text-[#E5BE7A] border border-[#E5BE7A]/30 flex items-center gap-1 font-medium transition-colors"
-                        title="Open interactive rectangular cropper & resizer"
+                        onClick={() => setModalRotation(prev => (prev + 90) % 360)}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[#E5BE7A] border border-[#E5BE7A]/30 flex items-center gap-1.5 font-medium transition-colors text-xs active:scale-95 shadow-sm"
+                        title="Rotate photo 90 degrees clockwise"
                       >
-                        <Crop className="w-3 h-3" />
-                        <span>Open Cropper</span>
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Rotate 90° ({modalRotation}°)</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Frame Simulation Box (Interactively Draggable via Pointer Events) */}
-                  <div 
-                    ref={simulationRef}
-                    onPointerDown={handleSimulationPointerDown}
-                    onPointerMove={handleSimulationPointerMove}
-                    onPointerUp={handleSimulationPointerUp}
-                    className="relative w-full h-52 sm:h-56 rounded-lg overflow-hidden bg-black border border-zinc-800 shadow-inner cursor-ns-resize group select-none touch-none"
-                    title="Click and drag vertically to reposition head & frame"
-                  >
-                    <img
-                      src={formData.image}
-                      alt="Frame preview"
-                      className="w-full h-full object-cover transition-all duration-75 pointer-events-none"
-                      style={{ objectPosition: `center ${focalPercent}%` }}
-                    />
+                  {/* Exact 4:3 Frame Container as seen on Live Website */}
+                  <div className="flex justify-center">
+                    <div
+                      ref={simulationRef}
+                      onPointerDown={handleFramePointerDown}
+                      onPointerMove={handleFramePointerMove}
+                      onPointerUp={handleFramePointerUp}
+                      onWheel={handleFrameWheel}
+                      className="relative w-full max-w-[420px] aspect-[4/3] rounded-xl overflow-hidden bg-black border border-amber-900/40 shadow-2xl cursor-grab active:cursor-grabbing group select-none touch-none"
+                      title="Directly drag image to reposition • Scroll to zoom"
+                    >
+                      <img
+                        src={formData.image}
+                        alt="Stage frame preview"
+                        draggable={false}
+                        className="w-full h-full object-cover select-none pointer-events-none transition-transform duration-75"
+                        style={{
+                          objectPosition: `${focalX}% ${focalY}%`,
+                          transform: `scale(${modalScale}) rotate(${modalRotation}deg)`,
+                          transformOrigin: `${focalX}% ${focalY}%`
+                        }}
+                      />
 
-                    {/* Subtle Frame Guide Overlay */}
-                    <div className="absolute inset-0 pointer-events-none border border-zinc-700/40 rounded-lg" />
-                    <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300 pointer-events-none flex items-center gap-1 backdrop-blur-sm border border-zinc-700/60">
-                      <Move className="w-2.5 h-2.5 text-[#E5BE7A]" />
-                      <span>Drag vertically to adjust alignment</span>
-                    </div>
+                      {/* Framing Guides */}
+                      <div className="absolute inset-0 pointer-events-none border border-amber-500/20 rounded-xl" />
+                      <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300 pointer-events-none flex items-center gap-1 backdrop-blur-sm border border-zinc-700/60">
+                        <Move className="w-2.5 h-2.5 text-[#E5BE7A]" />
+                        <span>Drag to pan (X & Y)</span>
+                      </div>
+                      <div className="absolute top-2 right-2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300 pointer-events-none flex items-center gap-1 backdrop-blur-sm border border-zinc-700/60 font-mono">
+                        <span>4:3 Live Frame</span>
+                      </div>
 
-                    {/* Center Drag Cue visible on hover */}
-                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                      <span className="text-[11px] font-medium bg-black/85 text-zinc-200 px-3 py-1 rounded-full border border-zinc-700 backdrop-blur-sm shadow-md flex items-center gap-1.5">
-                        <Move className="w-3 h-3 text-[#E5BE7A]" />
-                        <span>Drag up/down to reposition frame</span>
-                      </span>
+                      {/* Hover drag cue */}
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <span className="text-[11px] font-medium bg-black/85 text-zinc-200 px-3 py-1 rounded-full border border-zinc-700 backdrop-blur-sm shadow-md flex items-center gap-1.5">
+                          <Move className="w-3 h-3 text-[#E5BE7A]" />
+                          <span>Drag in any direction to adjust</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Vertical Slider Control */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] text-zinc-400">
-                      <span>Top (Head: 0%)</span>
-                      <span className="text-zinc-200 font-medium">Current: {focalPercent}%</span>
-                      <span>Bottom (Feet: 100%)</span>
+                  {/* Resizing / Zoom Controls */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                      <span className="flex items-center gap-1">
+                        <span>Resize / Zoom Image:</span>
+                        <span className="text-zinc-200 font-mono">{modalScale.toFixed(2)}x</span>
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setModalScale(prev => Math.max(Number((prev - 0.1).toFixed(2)), 1))}
+                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                          title="Zoom Out"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalScale(1)}
+                          className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px]"
+                          title="Reset Zoom"
+                        >
+                          1.0x
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalScale(prev => Math.min(Number((prev + 0.1).toFixed(2)), 3))}
+                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                          title="Zoom In"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                     <input
                       type="range"
-                      min={0}
-                      max={100}
-                      value={focalPercent}
-                      onChange={(e) => setFocalPercent(parseInt(e.target.value, 10))}
-                      className="w-full accent-white cursor-pointer"
+                      min={1}
+                      max={3}
+                      step={0.05}
+                      value={modalScale}
+                      onChange={(e) => setModalScale(parseFloat(e.target.value))}
+                      className="w-full accent-[#E5BE7A] cursor-pointer"
                     />
                   </div>
 
-                  {/* Quick-Preset Buttons for Perfect Portrait Framing */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
-                    <span className="text-zinc-500 text-[11px]">Presets:</span>
+                  {/* Quick Presets for Vertical Alignment */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-zinc-800/60 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-zinc-500 text-[11px]">Align:</span>
+                      <button
+                        type="button"
+                        onClick={() => { setFocalX(50); setFocalY(15); }}
+                        className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px] transition-colors"
+                      >
+                        Head Focus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setFocalX(50); setFocalY(30); }}
+                        className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px] transition-colors"
+                      >
+                        Upper Body
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setFocalX(50); setFocalY(50); }}
+                        className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[11px] transition-colors"
+                      >
+                        Center
+                      </button>
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => setFocalPercent(15)}
-                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition-colors"
+                      onClick={() => { setFocalX(50); setFocalY(20); setModalScale(1); setModalRotation(0); }}
+                      className="text-[11px] text-zinc-400 hover:text-zinc-200 underline"
                     >
-                      Head Focus (15%)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFocalPercent(25)}
-                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition-colors"
-                    >
-                      Upper Body (25%)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFocalPercent(50)}
-                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs transition-colors"
-                    >
-                      Center (50%)
+                      Reset Framing
                     </button>
                   </div>
                 </div>
@@ -1936,21 +2734,6 @@ export default function AdminPage() {
 
           </div>
         </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* INTERACTIVE RECTANGULAR IMAGE CROPPER & RESIZER (Image 2 Reference UX) */}
-      {/* ========================================================================= */}
-      {showCropper && (
-        <ImageCropperModal
-          isOpen={showCropper}
-          imageSrc={cropImageSrc}
-          onClose={() => setShowCropper(false)}
-          onCropComplete={handleCropComplete}
-          onRetake={() => fileInputRef.current?.click()}
-          initialAspectRatio={4 / 3}
-          title="Drag the image to adjust"
-        />
       )}
 
     </div>

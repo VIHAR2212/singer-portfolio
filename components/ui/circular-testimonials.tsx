@@ -15,6 +15,8 @@ export interface Testimonial {
   designation: string;
   src: string;
   objectPosition?: string;
+  scale?: number;
+  rotation?: number;
 }
 
 export interface Colors {
@@ -172,24 +174,29 @@ export const CircularTestimonials = ({
             {testimonials.map((testimonial, index) => {
               const webpSrc = testimonial.src.replace(/\.(png|jpg|jpeg)$/i, '.webp');
               return (
-                <img
+                <div
                   key={testimonial.src + index}
-                  src={webpSrc}
-                  alt={testimonial.name}
-                  loading={index === activeIndex ? "eager" : "lazy"}
-                  decoding="async"
-                  className="absolute inset-0 w-full h-full object-cover rounded-xl border border-[#E5BE7A]/40 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] cursor-pointer will-change-transform"
-                  style={{
-                    ...getImageStyle(index),
-                    objectPosition: testimonial.objectPosition || "center 20%"
-                  }}
+                  className="absolute inset-0 w-full h-full rounded-xl border border-[#E5BE7A]/40 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] cursor-pointer will-change-transform overflow-hidden bg-black"
+                  style={getImageStyle(index)}
                   onClick={(e) => {
                     if (index !== activeIndex) {
                       e.stopPropagation();
                       setActiveIndex(index);
                     }
                   }}
-                />
+                >
+                  <img
+                    src={webpSrc}
+                    alt={testimonial.name}
+                    loading={index === activeIndex ? "eager" : "lazy"}
+                    decoding="async"
+                    className="w-full h-full object-cover transition-transform duration-500 will-change-transform"
+                    style={{
+                      objectPosition: testimonial.objectPosition || "center 20%",
+                      transform: `scale(${testimonial.scale || 1}) rotate(${testimonial.rotation || 0}deg)`
+                    }}
+                  />
+                </div>
               );
             })}
           </div>

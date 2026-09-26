@@ -1,4 +1,19 @@
 {
+  "heroPortrait": {
+    "image": "/sonal-hero-portrait.webp",
+    "objectPosition": "center 20%",
+    "scale": 1,
+    "rotation": 0,
+    "tagline": "A Voice That Brings Every Celebration to Life."
+  },
+  "riyazPhoto": {
+    "image": "/sonal-riyaz-academy.webp",
+    "objectPosition": "center 20%",
+    "scale": 1,
+    "rotation": 0,
+    "title": "Musical Journey & Practice",
+    "subtitle": "Classical Riyaz"
+  },
   "livePerformance": {
     "title": "The Magic of Live Music",
     "subtitle": "Glimpses from stage shows and festival evenings",
