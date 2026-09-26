@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import Image from 'next/image';
 import Lenis from 'lenis';
 import { CircularTestimonials, Testimonial } from '@/components/ui/circular-testimonials';
 import { CelestialMandala } from '@/components/ui/celestial-mandala';
+import MusicalPreloader from '@/components/MusicalPreloader';
 import { 
   motion, 
   AnimatePresence, 
@@ -116,7 +118,7 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
     title: 'Navratri Raas Stage',
     category: 'Navratri',
     spanClass: 'col-span-1',
-    image: '/gallery-item-1.png'
+    image: '/gallery-item-1.webp'
   },
   {
     id: 2,
@@ -124,7 +126,7 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
     title: 'Classical Baithak',
     category: 'Classical',
     spanClass: 'col-span-1',
-    image: '/gallery-item-2.png'
+    image: '/gallery-item-2.webp'
   },
   {
     id: 3,
@@ -132,7 +134,7 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
     title: 'Wedding Recital',
     category: 'Royal Wedding',
     spanClass: 'col-span-1',
-    image: '/gallery-item-3.png'
+    image: '/gallery-item-3.webp'
   },
   {
     id: 4,
@@ -140,7 +142,7 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
     title: 'Devotional Bhajan Sandhya',
     category: 'Devotional',
     spanClass: 'col-span-1',
-    image: '/gallery-item-4.png'
+    image: '/gallery-item-4.webp'
   },
   {
     id: 5,
@@ -148,7 +150,7 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
     title: 'Auditorium Musical Ensemble',
     category: 'Classical',
     spanClass: 'col-span-1',
-    image: '/gallery-item-5.png'
+    image: '/gallery-item-5.webp'
   },
   {
     id: 6,
@@ -156,43 +158,43 @@ const GALLERY_ARCHIVE: GalleryItem[] = [
     title: 'Festival Concert Stage',
     category: 'Navratri',
     spanClass: 'col-span-1',
-    image: '/gallery-item-6.png'
+    image: '/gallery-item-6.webp'
   }
 ];
 
 const ARCHIVE_TESTIMONIALS: Testimonial[] = [
   {
-    src: '/gallery-item-1.png',
+    src: '/gallery-item-1.webp',
     name: 'Navratri Raas Stage',
     designation: 'Live Festive Performance',
     quote: 'Energetic traditional Garba and folk melodies bringing thousands of dancers together under the festive night sky.'
   },
   {
-    src: '/gallery-item-2.png',
+    src: '/gallery-item-2.webp',
     name: 'Classical Baithak',
     designation: 'Traditional Sangeet Sabha',
     quote: 'An intimate evening of classical ragas and soulful melodies, performed with years of dedicated riyaz.'
   },
   {
-    src: '/gallery-item-3.png',
+    src: '/gallery-item-3.webp',
     name: 'Wedding Recital',
     designation: 'Family Wedding & Sangeet',
     quote: 'Heartfelt traditional songs and melodious wedding tunes celebrating precious family milestones.'
   },
   {
-    src: '/gallery-item-4.png',
+    src: '/gallery-item-4.webp',
     name: 'Devotional Bhajan Sandhya',
     designation: 'Soulful Bhajans & Prayers',
     quote: 'Peaceful devotional bhajans that create a calm, sacred, and uplifted atmosphere in the hall.'
   },
   {
-    src: '/gallery-item-5.png',
+    src: '/gallery-item-5.webp',
     name: 'Auditorium Ensemble',
     designation: 'Live Stage Concert',
     quote: 'Accompanied by skilled traditional musicians on tabla, harmonium, and acoustic instruments.'
   },
   {
-    src: '/gallery-item-6.png',
+    src: '/gallery-item-6.webp',
     name: 'Festival Concert Stage',
     designation: 'Community Celebration',
     quote: 'Singing beloved Gujarati and Hindi melodies that bring joy and smiles across generations.'
@@ -265,6 +267,11 @@ function DustParticles() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
+    // Respect prefers-reduced-motion
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -292,7 +299,20 @@ function DustParticles() {
       wobble: Math.random() * Math.PI * 2,
     }));
 
+    let isPaused = false;
+    const handleVisibility = () => {
+      isPaused = document.hidden;
+      if (!isPaused && !animationId) {
+        animationId = requestAnimationFrame(render);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     const render = () => {
+      if (isPaused) {
+        animationId = 0;
+        return;
+      }
       ctx.clearRect(0, 0, width, height);
 
       particles.forEach((p) => {
@@ -321,6 +341,7 @@ function DustParticles() {
     return () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
@@ -425,6 +446,7 @@ export default function App() {
   const [currentTrack, setCurrentTrack] = useState<Track>(TRACKS_CATALOG[0]);
   const [isPlayingTrack, setIsPlayingTrack] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
+  const [loadAudioPlayer, setLoadAudioPlayer] = useState(false);
   const tanpuraEngineRef = useRef<AmbientTanpuraEngine | null>(null);
   const audioIframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -442,7 +464,7 @@ export default function App() {
       youtubeUrl: "https://www.youtube.com/watch?v=RXVnBqGBi9A",
       videoId: "RXVnBqGBi9A",
       channelUrl: "https://www.youtube.com/@SonalMakwana-zb7qc",
-      thumbnail: "/sonal-concert-stage.png"
+      thumbnail: "/sonal-concert-stage.webp"
     },
     featuredSong: {
       title: "Ram Aayenge",
@@ -571,17 +593,22 @@ export default function App() {
   // Audio Playback toggle via postMessage to background stream
   const toggleAudioPlayback = () => {
     const nextPlaying = !isPlayingTrack;
-    setIsPlayingTrack(nextPlaying);
-    if (audioIframeRef.current?.contentWindow) {
-      audioIframeRef.current.contentWindow.postMessage(
-        JSON.stringify({
-          event: 'command',
-          func: nextPlaying ? 'playVideo' : 'pauseVideo',
-          args: []
-        }),
-        '*'
-      );
+    if (!loadAudioPlayer) {
+      setLoadAudioPlayer(true);
     }
+    setIsPlayingTrack(nextPlaying);
+    setTimeout(() => {
+      if (audioIframeRef.current?.contentWindow) {
+        audioIframeRef.current.contentWindow.postMessage(
+          JSON.stringify({
+            event: 'command',
+            func: nextPlaying ? 'playVideo' : 'pauseVideo',
+            args: []
+          }),
+          '*'
+        );
+      }
+    }, loadAudioPlayer ? 0 : 500);
   };
 
   const openVideoModal = () => {
@@ -660,11 +687,11 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen bg-[#0B0705] text-[#E8DDCB] selection:bg-[#E5BE7A]/25 selection:text-[#FFF7ED] font-['Outfit',sans-serif] overflow-x-hidden antialiased">
+      {/* Bespoke Responsive Musical Preloader */}
+      <MusicalPreloader />
       
       {/* Luxury Font & Handcrafted Indian Texture Injections */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Noto+Serif+Devanagari:wght@400;500;600;700&family=Noto+Serif+Gujarati:wght@400;500;600;700&family=Outfit:wght@200;300;400;500;600&display=swap');
-
         .font-serif-luxury {
           font-family: 'Cormorant Garamond', Georgia, serif;
         }
@@ -1080,7 +1107,14 @@ export default function App() {
                     {/* Top Line: Sonal / સોનલ / सोनल in Big Letters */}
                     <div className="overflow-visible pt-2 pb-1">
                       <span className="block gold-shimmer-text overflow-visible">
-                        {NAME_LANGUAGES[currentLangIdx].line1}
+                        {NAME_LANGUAGES[currentLangIdx].id === 'en' ? (
+                          <>
+                            <span id="hero-initial-s" className="inline-block relative">S</span>
+                            {NAME_LANGUAGES[currentLangIdx].line1.slice(1)}
+                          </>
+                        ) : (
+                          NAME_LANGUAGES[currentLangIdx].line1
+                        )}
                       </span>
                     </div>
 
@@ -1159,12 +1193,15 @@ export default function App() {
 
               {/* Inner Photographic Frame */}
               <div className="relative aspect-[3/4] overflow-hidden bg-[#14110E] border border-white/10">
-                <img
-                  src="/sonal-hero-portrait.png"
+                <Image
+                  src="/sonal-hero-portrait.webp"
                   alt="Sonal Makwana Official Portrait"
-                  className="w-full h-full object-cover object-center filter contrast-105 brightness-100 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 90vw, (max-width: 1200px) 45vw, 500px"
+                  className="object-cover object-center filter contrast-105 brightness-100 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#090807] via-transparent to-transparent opacity-40 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#090807] via-transparent to-transparent opacity-40 pointer-events-none z-10" />
               </div>
             </div>
           </motion.div>
@@ -1228,12 +1265,15 @@ export default function App() {
             <LuxuryReveal delay={0.1}>
               <div className="luxury-card luxury-card-hover p-3">
                 <div className="relative aspect-[4/5] overflow-hidden bg-[#14110E]">
-                  <img
-                    src="/sonal-riyaz-academy.jpg"
+                  <Image
+                    src="/sonal-riyaz-academy.webp"
                     alt="Sonal Makwana Sangeet Academy Performance"
-                    className="w-full h-full object-cover filter contrast-105 brightness-95 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
+                    fill
+                    loading="lazy"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 40vw, 450px"
+                    className="object-cover filter contrast-105 brightness-95 group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B0705] via-transparent to-transparent opacity-60 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B0705] via-transparent to-transparent opacity-60 pointer-events-none z-10" />
                 </div>
                 <div className="flex items-baseline justify-between text-xs sm:text-[13px] text-[#A39888] px-2 pt-3 pb-1">
                   <span className="uppercase tracking-[0.18em] text-xs">Musical Journey & Practice</span>
@@ -1591,8 +1631,39 @@ export default function App() {
       {/* Section 04: Live Performances */}
       <section 
         id="concerts" 
-        className="relative py-28 md:py-36 px-6 md:px-12 border-t border-white/[0.08] max-w-7xl mx-auto"
+        className="relative py-28 md:py-36 px-6 md:px-12 border-t border-white/[0.08] max-w-7xl mx-auto overflow-hidden"
       >
+        {/* Monumental Watermark Sliding Behind Live Section */}
+        <div className="absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden -z-0 opacity-40">
+          <motion.div
+            initial={{ x: "0%" }}
+            animate={{ x: "-50%" }}
+            transition={{
+              duration: 45,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+            className="flex items-center whitespace-nowrap will-change-transform"
+          >
+            <div className="flex items-center shrink-0">
+              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
+                LIVE IN CONCERT
+              </span>
+              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
+                LIVE IN CONCERT
+              </span>
+            </div>
+            <div className="flex items-center shrink-0">
+              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
+                LIVE IN CONCERT
+              </span>
+              <span className="font-serif-luxury text-[44vw] sm:text-[30vw] lg:text-[22vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.05] via-[#E5BE7A]/[0.02] to-transparent pr-16 sm:pr-28">
+                LIVE IN CONCERT
+              </span>
+            </div>
+          </motion.div>
+        </div>
+
         <LuxuryReveal>
           <div className="flex items-center gap-3 text-xs sm:text-[13px] uppercase tracking-[0.25em] text-[#E5BE7A] font-medium mb-4">
             <span className="font-mono text-sm">[04]</span>
@@ -1621,10 +1692,13 @@ export default function App() {
             className="mt-12 luxury-card luxury-card-hover p-2.5 cursor-pointer group relative overflow-hidden active:scale-[0.98]"
           >
             <div className="relative aspect-[21/9] w-full overflow-hidden bg-[#14110E]">
-              <img
-                src={siteSettings.livePerformance?.thumbnail || "/sonal-concert-stage.png"}
+              <Image
+                src={siteSettings.livePerformance?.thumbnail?.replace(/\.(png|jpg)$/i, '.webp') || "/sonal-concert-stage.webp"}
                 alt="Sonal Makwana Live Concert Showcase"
-                className="w-full h-full object-cover filter contrast-110 brightness-85 group-hover:scale-[1.01] transition-transform duration-700 will-change-transform"
+                fill
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
+                className="object-cover filter contrast-110 brightness-85 group-hover:scale-[1.01] transition-transform duration-700 will-change-transform"
               />
               
               {/* Center Play Reel Button */}
@@ -1967,32 +2041,38 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <footer className="relative w-full border-t border-white/[0.08] overflow-hidden pt-20 pb-12">
-        {/* Monumental Watermark Sliding Left Slowly Behind Footer Elements */}
+      <footer className="relative w-full border-t border-white/[0.08] overflow-hidden pt-24 sm:pt-28 pb-14 min-h-[460px]">
+        {/* Monumental Watermark Sliding Left Slowly Behind Footer Elements (Doubled Size & Seamless Marquee) */}
         <div className="absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden -z-0">
           <motion.div
             initial={{ x: "0%" }}
             animate={{ x: "-50%" }}
             transition={{
-              duration: 40,
+              duration: 45,
               repeat: Infinity,
               ease: "linear",
             }}
             className="flex items-center whitespace-nowrap will-change-transform"
           >
             <div className="flex items-center shrink-0">
-              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
+              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
                 SONAL MAKWANA
               </span>
-              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
+              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
+                SONAL MAKWANA
+              </span>
+              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
                 SONAL MAKWANA
               </span>
             </div>
             <div className="flex items-center shrink-0">
-              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
+              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
                 SONAL MAKWANA
               </span>
-              <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
+              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
+                SONAL MAKWANA
+              </span>
+              <span className="font-serif-luxury text-[64vw] sm:text-[44vw] lg:text-[36vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.08] via-[#E5BE7A]/[0.04] to-transparent pr-16 sm:pr-32">
                 SONAL MAKWANA
               </span>
             </div>
@@ -2237,15 +2317,17 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Hidden YouTube audio player stream for Featured Song */}
-      <iframe
-        ref={audioIframeRef}
-        id="youtube-audio-stream"
-        title="Featured Song Audio Stream"
-        className="opacity-0 pointer-events-none fixed -top-[2000px] -left-[2000px] w-10 h-10 -z-50"
-        src={`https://www.youtube-nocookie.com/embed/${siteSettings.featuredSong?.videoId || "1CTF9uM65b8"}?enablejsapi=1&controls=0&rel=0&playsinline=1`}
-        allow="autoplay"
-      />
+      {/* Hidden YouTube audio player stream for Featured Song - Lazy Loaded on Demand */}
+      {loadAudioPlayer && (
+        <iframe
+          ref={audioIframeRef}
+          id="youtube-audio-stream"
+          title="Featured Song Audio Stream"
+          className="opacity-0 pointer-events-none fixed -top-[2000px] -left-[2000px] w-10 h-10 -z-50"
+          src={`https://www.youtube-nocookie.com/embed/${siteSettings.featuredSong?.videoId || "1CTF9uM65b8"}?enablejsapi=1&controls=0&rel=0&playsinline=1`}
+          allow="autoplay"
+        />
+      )}
 
     </div>
   );

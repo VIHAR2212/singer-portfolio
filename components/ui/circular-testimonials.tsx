@@ -169,24 +169,29 @@ export const CircularTestimonials = ({
             ref={imageContainerRef}
             onClick={() => onImageClick?.(activeIndex)}
           >
-            {testimonials.map((testimonial, index) => (
-              <img
-                key={testimonial.src + index}
-                src={testimonial.src}
-                alt={testimonial.name}
-                className="absolute inset-0 w-full h-full object-cover rounded-xl border border-[#E5BE7A]/40 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] cursor-pointer will-change-transform"
-                style={{
-                  ...getImageStyle(index),
-                  objectPosition: testimonial.objectPosition || "center 20%"
-                }}
-                onClick={(e) => {
-                  if (index !== activeIndex) {
-                    e.stopPropagation();
-                    setActiveIndex(index);
-                  }
-                }}
-              />
-            ))}
+            {testimonials.map((testimonial, index) => {
+              const webpSrc = testimonial.src.replace(/\.(png|jpg|jpeg)$/i, '.webp');
+              return (
+                <img
+                  key={testimonial.src + index}
+                  src={webpSrc}
+                  alt={testimonial.name}
+                  loading={index === activeIndex ? "eager" : "lazy"}
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover rounded-xl border border-[#E5BE7A]/40 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] cursor-pointer will-change-transform"
+                  style={{
+                    ...getImageStyle(index),
+                    objectPosition: testimonial.objectPosition || "center 20%"
+                  }}
+                  onClick={(e) => {
+                    if (index !== activeIndex) {
+                      e.stopPropagation();
+                      setActiveIndex(index);
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
           <div className="text-center mt-3.5 text-xs font-mono uppercase tracking-[0.16em] text-[#A39888]">
             Plate [{String(activeIndex + 1).padStart(2, "0")} / {String(testimonialsLength).padStart(2, "0")}] · Click to expand
