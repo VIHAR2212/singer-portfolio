@@ -113,7 +113,9 @@ export async function POST(req) {
           value: globalThis.__galleryCache,
           updated_at: new Date().toISOString()
         });
-      } catch {}
+      } catch (err) {
+        console.warn('Supabase site_settings gallery_items upsert error:', err);
+      }
 
       try {
         await supabase.from('gallery').insert({
@@ -125,10 +127,12 @@ export async function POST(req) {
           quote: newItem.quote,
           image: newItem.image,
           object_position: newItem.objectPosition,
+          scale: newItem.scale,
+          rotation: newItem.rotation,
           created_at: newItem.createdAt
         });
       } catch (dbErr) {
-        console.warn('Supabase gallery insert skipped:', dbErr);
+        console.warn('Supabase gallery insert error:', dbErr);
       }
     }
 
@@ -169,7 +173,9 @@ export async function PUT(req) {
             value: globalThis.__galleryCache,
             updated_at: new Date().toISOString()
           });
-        } catch {}
+        } catch (err) {
+          console.warn('Supabase site_settings batch upsert error:', err);
+        }
 
         try {
           for (const item of renumbered) {
@@ -182,11 +188,13 @@ export async function PUT(req) {
               quote: item.quote,
               image: item.image,
               object_position: item.objectPosition,
+              scale: item.scale,
+              rotation: item.rotation,
               updated_at: new Date().toISOString()
             });
           }
         } catch (dbErr) {
-          console.warn('Supabase batch update skipped:', dbErr);
+          console.warn('Supabase batch update error:', dbErr);
         }
       }
 
@@ -230,7 +238,9 @@ export async function PUT(req) {
           value: globalThis.__galleryCache,
           updated_at: new Date().toISOString()
         });
-      } catch {}
+      } catch (err) {
+        console.warn('Supabase site_settings upsert error:', err);
+      }
 
       try {
         await supabase
@@ -242,11 +252,13 @@ export async function PUT(req) {
             ...(quote !== undefined && { quote: updatedItem.quote }),
             ...(image !== undefined && { image: updatedItem.image }),
             ...(objectPosition !== undefined && { object_position: updatedItem.objectPosition }),
+            ...(scale !== undefined && { scale: updatedItem.scale }),
+            ...(rotation !== undefined && { rotation: updatedItem.rotation }),
             updated_at: new Date().toISOString()
           })
           .eq('id', id);
       } catch (dbErr) {
-        console.warn('Supabase update single item skipped:', dbErr);
+        console.warn('Supabase update single item error:', dbErr);
       }
     }
 

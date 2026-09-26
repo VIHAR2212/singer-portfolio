@@ -31,13 +31,20 @@ export async function POST(req) {
       try {
         const { error: uploadError } = await supabase.storage
           .from('uploads')
-          .upload(fileName, file, { contentType: file.type || 'image/jpeg', upsert: false });
+          .upload(fileName, file, { contentType: file.type || 'image/jpeg', upsert: true });
 
         if (!uploadError) {
           const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
           if (publicUrlData?.publicUrl) {
-            return NextResponse.json({ success: true, url: publicUrlData.publicUrl, fileName });
+            return NextResponse.json({ 
+              success: true, 
+              url: publicUrlData.publicUrl, 
+              fileName,
+              storage: 'supabase' 
+            });
           }
+        } else {
+          console.warn('Supabase storage upload error:', uploadError.message);
         }
       } catch (storageErr) {
         console.warn('Supabase storage upload unsuccessful, falling back to data URL:', storageErr);
@@ -58,7 +65,8 @@ export async function POST(req) {
       success: true,
       url: base64DataUrl,
       fileName,
-      note: 'Processed securely via buffer'
+      storage: 'memory',
+      note: 'Processed via in-memory data URL fallback'
     });
   } catch (err) {
     console.error('File upload error:', err);

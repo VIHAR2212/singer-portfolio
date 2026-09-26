@@ -4,9 +4,8 @@ import { verifyAdminRequest } from '@/lib/auth';
 import initialInquiries from '@/data/inquiries.json';
 
 export const runtime = 'edge';
-
-// In-memory cache for inquiries when Supabase is not yet populated
-let inMemoryInquiries = [...initialInquiries];
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // Normalize record from either Supabase `bookings` or `inquiries`
 function normalizeInquiry(row) {
@@ -23,6 +22,11 @@ function normalizeInquiry(row) {
     status: row.status || 'new',
     notes: row.notes || ''
   };
+}
+
+// Persistent process-level cache across edge requests
+if (!globalThis.__inquiriesCache) {
+  globalThis.__inquiriesCache = initialInquiries.map(normalizeInquiry);
 }
 
 export async function GET(req) {
@@ -74,9 +78,12 @@ export async function GET(req) {
       }
     }
 
-    // 3. If no DB records yet, use in-memory / fallback data
-    if (combined.length === 0) {
-      combined = inMemoryInquiries.map(normalizeInquiry);
+    // 3. Merge with in-memory inquiries so no unpersisted records are lost
+    const existingIds = new Set(combined.map(c => String(c.id)));
+    for (const item of globalThis.__inquiriesCache) {
+      if (!existingIds.has(String(item.id))) {
+        combined.push(normalizeInquiry(item));
+      }
     }
 
     // Apply status filter if specified
@@ -90,7 +97,7 @@ export async function GET(req) {
     return NextResponse.json({ success: true, inquiries: combined });
   } catch (err) {
     console.error('Failed to fetch inquiries:', err);
-    return NextResponse.json({ success: true, inquiries: inMemoryInquiries });
+    return NextResponse.json({ success: true, inquiries: globalThis.__inquiriesCache });
   }
 }
 
@@ -122,15 +129,41 @@ export async function POST(req) {
 
     const supabase = getAdminClient();
     if (supabase) {
-      // Save to bookings table
+      // Save to bookings table with fallback for uuid columns
       try {
-        await supabase.from('bookings').insert(newRecord);
+        const { data, error } = await supabase.from('bookings').insert(newRecord).select('id').single();
+        if (error) {
+          // If table has uuid column and rejected text id, retry without id
+          const { data: retryData, error: retryError } = await supabase
+            .from('bookings')
+            .insert({
+              created_at: newRecord.created_at,
+              name: newRecord.name,
+              phone: newRecord.phone,
+              email: newRecord.email,
+              event_type: newRecord.event_type,
+              event_date: newRecord.event_date,
+              city: newRecord.city,
+              message: newRecord.message,
+              status: newRecord.status
+            })
+            .select('id')
+            .single();
+
+          if (!retryError && retryData?.id) {
+            newRecord.id = String(retryData.id);
+          } else {
+            console.warn('Insert to bookings failed:', error.message);
+          }
+        } else if (data?.id) {
+          newRecord.id = String(data.id);
+        }
       } catch (e) {
-        console.warn('Insert to bookings failed, saving to cache:', e);
+        console.warn('Insert to bookings exception, saving to cache:', e);
       }
     }
 
-    inMemoryInquiries.unshift(normalizeInquiry(newRecord));
+    globalThis.__inquiriesCache.unshift(normalizeInquiry(newRecord));
 
     return NextResponse.json({ success: true, inquiry: normalizeInquiry(newRecord) }, { status: 201 });
   } catch (err) {
@@ -171,7 +204,7 @@ export async function PATCH(req) {
       }
     }
 
-    inMemoryInquiries = inMemoryInquiries.map(item => {
+    globalThis.__inquiriesCache = globalThis.__inquiriesCache.map(item => {
       if (String(item.id) === String(id)) {
         return {
           ...item,
@@ -182,7 +215,7 @@ export async function PATCH(req) {
       return item;
     });
 
-    const updated = inMemoryInquiries.find(item => String(item.id) === String(id));
+    const updated = globalThis.__inquiriesCache.find(item => String(item.id) === String(id));
     return NextResponse.json({ success: true, inquiry: updated });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to update inquiry.' }, { status: 500 });
@@ -214,7 +247,7 @@ export async function DELETE(req) {
       }
     }
 
-    inMemoryInquiries = inMemoryInquiries.filter(item => String(item.id) !== String(id));
+    globalThis.__inquiriesCache = globalThis.__inquiriesCache.filter(item => String(item.id) !== String(id));
     return NextResponse.json({ success: true, message: 'Inquiry deleted successfully.' });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to delete inquiry.' }, { status: 500 });

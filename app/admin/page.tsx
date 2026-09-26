@@ -36,7 +36,12 @@ import {
   Move,
   RotateCw,
   Minus,
-  Camera
+  Camera,
+  Database,
+  Globe,
+  Copy,
+  CheckCheck,
+  Server
 } from 'lucide-react';
 
 interface Inquiry {
@@ -120,8 +125,20 @@ export default function AdminPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'inquiries' | 'featured-photos' | 'gallery' | 'video' | 'song' | 'security'>('inquiries');
+  const [activeTab, setActiveTab] = useState<'inquiries' | 'featured-photos' | 'gallery' | 'video' | 'song' | 'security' | 'database'>('inquiries');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Worldwide Cloud Database Status & Diagnostics
+  const [cloudStatus, setCloudStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    missing?: string[];
+    tables?: { bookings: boolean; gallery: boolean; site_settings: boolean; storage: boolean };
+    message?: string;
+    errors?: string[];
+  } | null>(null);
+  const [isTestingCloud, setIsTestingCloud] = useState(false);
+  const [hasCopiedSql, setHasCopiedSql] = useState(false);
 
   // Inquiries State
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -262,8 +279,151 @@ export default function AdminPage() {
       fetchInquiries();
       fetchGallery();
       fetchSettings();
+      fetchCloudStatus();
     }
   }, [isAuthenticated]);
+
+  // Fetch real-time Cloud Database health and sync status
+  const fetchCloudStatus = async () => {
+    setIsTestingCloud(true);
+    try {
+      const res = await fetch(`/api/status?t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      setCloudStatus(data);
+    } catch (err) {
+      console.error('Failed to fetch cloud database status:', err);
+    } finally {
+      setIsTestingCloud(false);
+    }
+  };
+
+  // Copy complete SQL schema to clipboard
+  const copySqlSchema = async () => {
+    const sql = `-- ============================================================
+-- Sonal Makwana Executive Portfolio Database & Storage Schema
+-- Run this in Supabase -> SQL Editor -> New Query -> Run
+-- Safe to re-run multiple times (Idempotent)
+-- ============================================================
+
+-- 1. Bookings & Inquiries Table (filled by organizers from website)
+create table if not exists public.bookings (
+  id text primary key default gen_random_uuid()::text,
+  created_at timestamptz not null default now(),
+  name text not null,
+  phone text not null,
+  email text,
+  event_type text not null default 'Live Concert / Sangeet',
+  event_date text,
+  city text,
+  message text,
+  status text not null default 'new',
+  notes text,
+  updated_at timestamptz default now()
+);
+
+-- In case bookings was previously created with uuid id or date column, alter to text
+do $$ 
+begin
+  if exists (
+    select 1 from information_schema.columns 
+    where table_name = 'bookings' and column_name = 'id' and data_type = 'uuid'
+  ) then
+    alter table public.bookings alter column id type text;
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns 
+    where table_name = 'bookings' and column_name = 'event_date' and data_type = 'date'
+  ) then
+    alter table public.bookings alter column event_date type text;
+  end if;
+end $$;
+
+-- 2. Stage Moments Gallery Table (with manual 2D frame, scale & rotation)
+create table if not exists public.gallery (
+  id text primary key,
+  number text not null,
+  title text not null,
+  category text default 'Navratri',
+  designation text default 'Live Festive Performance',
+  quote text,
+  image text not null,
+  object_position text default '50% 20%',
+  scale numeric default 1,
+  rotation numeric default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Ensure scale and rotation columns exist if table was previously created without them
+alter table public.gallery add column if not exists scale numeric default 1;
+alter table public.gallery add column if not exists rotation numeric default 0;
+
+-- 3. Dynamic Site Settings Table (Hero Portrait, Riyaz Photo, Video & Featured Song)
+create table if not exists public.site_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
+-- Security & Row Level Security (RLS) Policies
+-- ============================================================
+alter table public.bookings enable row level security;
+alter table public.gallery enable row level security;
+alter table public.site_settings enable row level security;
+
+-- Allow public website visitors to submit booking inquiries
+drop policy if exists "Public insert bookings" on public.bookings;
+create policy "Public insert bookings" on public.bookings for insert with check (true);
+
+-- Allow public website visitors to read gallery and site settings
+drop policy if exists "Public read gallery" on public.gallery;
+create policy "Public read gallery" on public.gallery for select using (true);
+
+drop policy if exists "Public read site_settings" on public.site_settings;
+create policy "Public read site_settings" on public.site_settings for select using (true);
+
+-- Allow admin full read/write access via service role key
+drop policy if exists "Service full access bookings" on public.bookings;
+create policy "Service full access bookings" on public.bookings using (true) with check (true);
+
+drop policy if exists "Service full access gallery" on public.gallery;
+create policy "Service full access gallery" on public.gallery using (true) with check (true);
+
+drop policy if exists "Service full access site_settings" on public.site_settings;
+create policy "Service full access site_settings" on public.site_settings using (true) with check (true);
+
+-- ============================================================
+-- Supabase Storage Bucket setup for high-res photo uploads
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('uploads', 'uploads', true)
+on conflict (id) do update set public = true;
+
+-- Allow public CDN read access to uploaded images
+drop policy if exists "Public Access uploads" on storage.objects;
+create policy "Public Access uploads" on storage.objects for select using (bucket_id = 'uploads');
+
+-- Allow authenticated/service-role uploads
+drop policy if exists "Allow upload to uploads bucket" on storage.objects;
+create policy "Allow upload to uploads bucket" on storage.objects for insert with check (bucket_id = 'uploads');
+
+drop policy if exists "Allow update to uploads bucket" on storage.objects;
+create policy "Allow update to uploads bucket" on storage.objects for update using (bucket_id = 'uploads');
+
+drop policy if exists "Allow delete from uploads bucket" on storage.objects;
+create policy "Allow delete from uploads bucket" on storage.objects for delete using (bucket_id = 'uploads');
+`;
+    try {
+      await navigator.clipboard.writeText(sql);
+      setHasCopiedSql(true);
+      showToast('Complete SQL Schema copied to clipboard!');
+      setTimeout(() => setHasCopiedSql(false), 3000);
+    } catch {
+      alert('Unable to copy automatically. Please open supabase/schema.sql in the repo.');
+    }
+  };
 
   // Server-side login with rate-limiting and encryption
   const handleLogin = async (e: React.FormEvent) => {
@@ -1100,6 +1260,20 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Worldwide Cloud Sync Pill */}
+            <button
+              onClick={() => { setActiveTab('database'); fetchCloudStatus(); }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                cloudStatus?.connected
+                  ? 'border-emerald-800/60 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-950/70'
+                  : 'border-amber-700/60 bg-amber-950/40 text-amber-300 hover:bg-amber-950/70 animate-pulse'
+              }`}
+              title="Click to manage worldwide cloud database sync"
+            >
+              <span className={`w-2 h-2 rounded-full ${cloudStatus?.connected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>{cloudStatus?.connected ? 'Worldwide Synced' : 'Cloud Setup Required'}</span>
+            </button>
+
             <a
               href="/"
               target="_blank"
@@ -1203,6 +1377,21 @@ export default function AdminPage() {
             <span>Security Center</span>
           </button>
 
+          <button
+            onClick={() => { setActiveTab('database'); fetchCloudStatus(); }}
+            className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${
+              activeTab === 'database'
+                ? 'border-zinc-100 text-zinc-100'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-zinc-400" />
+            <span>Worldwide Database</span>
+            {cloudStatus && !cloudStatus.connected && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            )}
+          </button>
+
         </div>
       </div>
 
@@ -1214,6 +1403,29 @@ export default function AdminPage() {
         {/* ========================================================================= */}
         {activeTab === 'inquiries' && (
           <div className="space-y-6">
+            
+            {/* Ephemeral Memory Mode Alert if Cloud is Disconnected */}
+            {cloudStatus && !cloudStatus.connected && (
+              <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold text-amber-300 block">
+                      Live Inquiries Running in Temporary Memory Mode
+                    </span>
+                    <span className="text-zinc-400">
+                      Organizer submissions are temporarily cached in serverless memory and will reset when server workers cycle. Connect your free Supabase database so submissions persist forever across the globe.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setActiveTab('database'); fetchCloudStatus(); }}
+                  className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-zinc-950 font-semibold rounded-lg text-xs transition-all shrink-0 shadow-sm"
+                >
+                  Set Up Cloud Database →
+                </button>
+              </div>
+            )}
             
             {/* Top Metrics Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -2404,6 +2616,230 @@ export default function AdminPage() {
               <p className="text-[11px] text-zinc-500">
                 For live deployments: Cloudflare Dashboard → Workers & Pages → singer-portfolio → Settings → Variables and Secrets.
               </p>
+            </div>
+
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 6: WORLDWIDE CLOUD DATABASE & PERSISTENCE DIAGNOSTICS */}
+        {/* ========================================================================= */}
+        {activeTab === 'database' && (
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Header Box */}
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium">
+                <Globe className={`w-4 h-4 ${cloudStatus?.connected ? 'text-emerald-400' : 'text-amber-400'}`} />
+                <span className={cloudStatus?.connected ? 'text-emerald-400' : 'text-amber-400'}>
+                  {cloudStatus?.connected ? 'Worldwide Live Sync Active' : 'Ephemeral Local Memory Mode'}
+                </span>
+              </div>
+              <h2 className="text-2xl font-semibold text-zinc-100">
+                Worldwide Cloud Database & Media Storage
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                Connect your free Supabase cloud database so that bookings submitted by event organizers anywhere on Earth, stage photo uploads, and live settings persist permanently across all devices and server reloads.
+              </p>
+            </div>
+
+            {/* Diagnostic Status Card */}
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-200">
+                    Cloud Connection Health Check
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Real-time status of your database tables and photo storage bucket
+                  </p>
+                </div>
+                <button
+                  onClick={fetchCloudStatus}
+                  disabled={isTestingCloud}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 rounded-lg text-xs font-medium transition-all self-start sm:self-auto disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isTestingCloud ? 'animate-spin' : ''}`} />
+                  <span>{isTestingCloud ? 'Pinging Cloud...' : 'Test Connection'}</span>
+                </button>
+              </div>
+
+              {/* Status Indicator Banner */}
+              <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs leading-relaxed ${
+                cloudStatus?.connected
+                  ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-200'
+                  : 'bg-amber-950/30 border-amber-800/50 text-amber-200'
+              }`}>
+                {cloudStatus?.connected ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                )}
+                <div className="space-y-1">
+                  <span className="font-semibold block text-sm">
+                    {cloudStatus?.connected ? 'Database & Storage Operational' : 'Cloud Database Not Connected'}
+                  </span>
+                  <p className="text-zinc-300">
+                    {cloudStatus?.message || 'Checking database configuration...'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Table / Bucket Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                
+                <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-300">Bookings Table</span>
+                    <span className={`w-2 h-2 rounded-full ${cloudStatus?.tables?.bookings ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                  </div>
+                  <span className={`text-[11px] font-mono block ${cloudStatus?.tables?.bookings ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                    {cloudStatus?.tables?.bookings ? 'Active (bookings)' : 'Not Connected'}
+                  </span>
+                  <p className="text-[10px] text-zinc-500">Organizer live inquiries</p>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-300">Gallery Table</span>
+                    <span className={`w-2 h-2 rounded-full ${cloudStatus?.tables?.gallery ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                  </div>
+                  <span className={`text-[11px] font-mono block ${cloudStatus?.tables?.gallery ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                    {cloudStatus?.tables?.gallery ? 'Active (gallery)' : 'Not Connected'}
+                  </span>
+                  <p className="text-[10px] text-zinc-500">Stage performance cards</p>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-300">Settings Table</span>
+                    <span className={`w-2 h-2 rounded-full ${cloudStatus?.tables?.site_settings ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                  </div>
+                  <span className={`text-[11px] font-mono block ${cloudStatus?.tables?.site_settings ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                    {cloudStatus?.tables?.site_settings ? 'Active (site_settings)' : 'Not Connected'}
+                  </span>
+                  <p className="text-[10px] text-zinc-500">Hero & riyaz alignment</p>
+                </div>
+
+                <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-300">Storage Bucket</span>
+                    <span className={`w-2 h-2 rounded-full ${cloudStatus?.tables?.storage ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                  </div>
+                  <span className={`text-[11px] font-mono block ${cloudStatus?.tables?.storage ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                    {cloudStatus?.tables?.storage ? 'Active (uploads)' : 'Base64 Fallback'}
+                  </span>
+                  <p className="text-[10px] text-zinc-500">High-res CDN photos</p>
+                </div>
+
+              </div>
+
+              {/* Show error logs if any */}
+              {cloudStatus?.errors && cloudStatus.errors.length > 0 && (
+                <div className="p-3 bg-zinc-950 rounded-lg border border-zinc-800 space-y-1 text-xs text-rose-300 font-mono">
+                  <span className="text-zinc-400 block font-sans font-semibold">Diagnostics Log:</span>
+                  {cloudStatus.errors.map((err, i) => (
+                    <div key={i}>• {err}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Step-by-Step Setup Guide */}
+            <div className="p-6 rounded-xl bg-[#121215] border border-zinc-800 space-y-6">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-100">
+                  How to Connect for Worldwide Access (3 Simple Steps)
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Follow these steps once. Your website will instantly become permanently connected worldwide.
+                </p>
+              </div>
+
+              {/* Step 1 */}
+              <div className="flex items-start gap-4">
+                <div className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-200 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                  1
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-sm font-semibold text-zinc-200">
+                    Create a Free Project on Supabase
+                  </h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Visit <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-medium">supabase.com</a>, log in or sign up (100% free), and click <strong className="text-zinc-200">New Project</strong>. Choose a name (e.g. <code className="text-zinc-300">sonal-portfolio</code>) and set any database password.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="flex items-start gap-4">
+                <div className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-200 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                  2
+                </div>
+                <div className="space-y-2 flex-1">
+                  <h4 className="text-sm font-semibold text-zinc-200">
+                    Run the SQL Schema in Supabase SQL Editor
+                  </h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    In your Supabase dashboard, click <strong className="text-zinc-200">SQL Editor</strong> on the left menu, click <strong className="text-zinc-200">New Query</strong>, paste the complete schema below, and click <strong className="text-zinc-200">Run</strong>. It will automatically create all tables, permissions, and the <code className="text-zinc-300">uploads</code> photo storage bucket.
+                  </p>
+                  
+                  <button
+                    onClick={copySqlSchema}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-zinc-200 active:scale-95 text-zinc-950 rounded-lg text-xs font-semibold transition-all shadow-sm"
+                  >
+                    {hasCopiedSql ? (
+                      <>
+                        <CheckCheck className="w-4 h-4 text-emerald-600" />
+                        <span>Copied to Clipboard!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Copy Complete SQL Schema (1-Click)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="flex items-start gap-4">
+                <div className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-200 font-mono text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                  3
+                </div>
+                <div className="space-y-2 flex-1">
+                  <h4 className="text-sm font-semibold text-zinc-200">
+                    Add Environment Variables to Cloudflare Pages (or Vercel)
+                  </h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    In Supabase, go to <strong className="text-zinc-200">Project Settings → API</strong>. Copy your <strong className="text-zinc-200">Project URL</strong> and <strong className="text-zinc-200">service_role</strong> secret key.
+                  </p>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    In your hosting dashboard (e.g. <strong className="text-zinc-200">Cloudflare Dashboard → Workers & Pages → singer-portfolio → Settings → Environment Variables</strong>):
+                  </p>
+
+                  <div className="p-3 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-xs space-y-2 text-zinc-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1 border-b border-zinc-800/80">
+                      <span className="text-emerald-400 font-semibold">NEXT_PUBLIC_SUPABASE_URL</span>
+                      <span className="text-zinc-500 font-sans text-[11px]">e.g. https://xyzcompany.supabase.co</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1 border-b border-zinc-800/80">
+                      <span className="text-emerald-400 font-semibold">SUPABASE_SERVICE_ROLE_KEY</span>
+                      <span className="text-zinc-500 font-sans text-[11px]">Secret service_role key from Supabase API</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-zinc-400 font-semibold">ADMIN_PASSWORD (Optional)</span>
+                      <span className="text-zinc-500 font-sans text-[11px]">Custom password (default is sonal2026)</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-zinc-400 pt-1">
+                    Once added, click <strong className="text-zinc-200">Save and Deploy</strong>. Every booking inquiry and photo adjustment is now permanent worldwide!
+                  </p>
+                </div>
+              </div>
+
             </div>
 
           </div>

@@ -675,15 +675,42 @@ export default function App() {
     }
   };
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      const code = `SM-${Math.floor(1000 + Math.random() * 9000)}-${new Date().getFullYear()}`;
-      setInquiryCode(code);
+
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          eventType: formData.eventType,
+          eventDate: formData.eventDate,
+          city: formData.location,
+          message: formData.notes
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const code = data.inquiry?.id || `SM-${Math.floor(1000 + Math.random() * 9000)}-${new Date().getFullYear()}`;
+        setInquiryCode(code);
+        setFormSubmitted(true);
+      } else {
+        alert(data.error || 'Failed to submit booking inquiry. Please call directly or reach out on WhatsApp.');
+      }
+    } catch (err) {
+      console.error('Failed to submit booking request:', err);
+      // Fallback display reference if network offline
+      const fallbackCode = `SM-${Math.floor(1000 + Math.random() * 9000)}-${new Date().getFullYear()}`;
+      setInquiryCode(fallbackCode);
       setFormSubmitted(true);
-    }, 1000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
