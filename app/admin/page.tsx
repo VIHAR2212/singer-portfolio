@@ -30,8 +30,12 @@ import {
   CheckCircle2, 
   Play, 
   Key,
-  Layers
+  Layers,
+  Crop,
+  GripVertical,
+  Move
 } from 'lucide-react';
+import ImageCropperModal from '@/components/admin/ImageCropperModal';
 
 interface Inquiry {
   id: string;
@@ -125,6 +129,18 @@ export default function AdminPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Image Cropping & Resizing Modal State (UX Reference Image 2)
+  const [showCropper, setShowCropper] = useState<boolean>(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string>('');
+
+  // Drag & Drop Gallery Card Rearranging State
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
+  const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(null);
+
+  // Live Frame Simulation Direct Dragging State
+  const [isSimulationDragging, setIsSimulationDragging] = useState<boolean>(false);
+  const simulationRef = useRef<HTMLDivElement | null>(null);
 
   // Settings State (Live Performance & Featured Song)
   const [settings, setSettings] = useState<SiteSettings>({
@@ -363,6 +379,142 @@ export default function AdminPage() {
     link.click();
     document.body.removeChild(link);
     showToast('Downloaded bookings to CSV.');
+  };
+
+  // Gallery: File selection with automatic crop modal opening
+  const handleFileSelect = (file: File) => {
+    setUploadError('');
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file (JPG, PNG, WebP).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setCropImageSrc(reader.result as string);
+        setShowCropper(true);
+      }
+    };
+    reader.onerror = () => {
+      setUploadError('Failed to read image file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Gallery: Crop confirmed via Green Checkmark in ImageCropperModal
+  const handleCropComplete = async (croppedDataUrl: string, blob: Blob) => {
+    setShowCropper(false);
+    // 1. Instantly set preview data URL in formData so user sees results with 0 delay
+    setFormData(prev => ({ ...prev, image: croppedDataUrl }));
+    showToast('Photo cropped and framed. Uploading to storage...');
+
+    // 2. Upload cropped blob to server/Supabase
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const form = new FormData();
+      const file = new File([blob], `stage-crop-${Date.now()}.webp`, { type: 'image/webp' });
+      form.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: form
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setFormData(prev => ({ ...prev, image: data.url }));
+        showToast('Cropped stage photo uploaded successfully.');
+      } else {
+        console.warn('Upload fallback to local cropped data URL');
+      }
+    } catch {
+      console.warn('Network upload fallback to local cropped data URL');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Direct Vertical Drag inside Live Frame Simulation Preview Box
+  const handleSimulationPointerDown = (e: React.PointerEvent) => {
+    setIsSimulationDragging(true);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    updateFocalFromPointer(e.clientY);
+  };
+
+  const handleSimulationPointerMove = (e: React.PointerEvent) => {
+    if (!isSimulationDragging) return;
+    updateFocalFromPointer(e.clientY);
+  };
+
+  const handleSimulationPointerUp = (e: React.PointerEvent) => {
+    setIsSimulationDragging(false);
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
+  const updateFocalFromPointer = (clientY: number) => {
+    if (!simulationRef.current) return;
+    const rect = simulationRef.current.getBoundingClientRect();
+    const relativeY = clientY - rect.top;
+    const percent = Math.min(Math.max(Math.round((relativeY / rect.height) * 100), 0), 100);
+    setFocalPercent(percent);
+  };
+
+  // Drag and Drop Gallery Cards Rearranging
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', String(index));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedItemIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverItemIndex !== index) {
+      setDragOverItemIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    // will reset on drop/dragEnd
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndex = draggedItemIndex !== null ? draggedItemIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
+    
+    if (isNaN(sourceIndex) || sourceIndex === targetIndex) {
+      setDraggedItemIndex(null);
+      setDragOverItemIndex(null);
+      return;
+    }
+
+    const updated = [...galleryItems];
+    const [moved] = updated.splice(sourceIndex, 1);
+    updated.splice(targetIndex, 0, moved);
+
+    const renumbered = updated.map((it, idx) => ({
+      ...it,
+      number: String(idx + 1).padStart(2, '0')
+    }));
+
+    setGalleryItems(renumbered);
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
+
+    try {
+      await fetch('/api/gallery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: renumbered })
+      });
+      showToast('Gallery sequence rearranged.');
+    } catch (err) {
+      console.error('Failed to save reordered items:', err);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItemIndex(null);
+    setDragOverItemIndex(null);
   };
 
   // Gallery: File upload with resilient fallback
@@ -1043,31 +1195,64 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* Gallery Grid */}
+            {/* Gallery Section Header & Tip */}
+            <div>
+              <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 mb-3">
+                <GripVertical className="w-3.5 h-3.5 text-[#E5BE7A]" />
+                <span>Tip: Drag and drop cards to rearrange gallery order, or click &ldquo;Adjust Frame&rdquo; to crop and position.</span>
+              </p>
+            </div>
+
+            {/* Gallery Grid with Drag & Drop Rearranging */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {galleryItems.map((item, index) => (
                 <div 
                   key={item.id}
-                  className="rounded-xl bg-[#121215] border border-zinc-800 overflow-hidden flex flex-col justify-between group shadow-sm hover:border-zinc-700 transition-colors"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`rounded-xl bg-[#121215] border transition-all duration-200 overflow-hidden flex flex-col justify-between group shadow-sm ${
+                    draggedItemIndex === index 
+                      ? 'opacity-30 scale-95 border-dashed border-[#E5BE7A]' 
+                      : dragOverItemIndex === index
+                        ? 'border-2 border-[#E5BE7A] scale-[1.02] shadow-xl ring-2 ring-[#E5BE7A]/30'
+                        : 'border-zinc-800 hover:border-zinc-700'
+                  }`}
                 >
                   <div className="space-y-3">
                     {/* Image with Focal Frame Position applied */}
-                    <div className="relative aspect-[4/3] w-full bg-zinc-900 overflow-hidden">
+                    <div className="relative aspect-[4/3] w-full bg-zinc-900 overflow-hidden cursor-grab active:cursor-grabbing">
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
                         style={{ objectPosition: item.objectPosition || 'center 20%' }}
                       />
                       
                       {/* Badges */}
                       <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-                        <span className="font-mono text-xs bg-black/80 text-zinc-200 px-2 py-0.5 rounded-md backdrop-blur-sm border border-zinc-700/60 font-semibold">
+                        <span className="font-mono text-xs bg-black/80 text-zinc-200 px-2 py-0.5 rounded-md backdrop-blur-sm border border-zinc-700/60 font-semibold flex items-center gap-1">
+                          <GripVertical className="w-3 h-3 text-zinc-400" />
                           #{item.number}
                         </span>
                         <span className="text-[11px] bg-black/80 text-zinc-300 px-2 py-0.5 rounded-md backdrop-blur-sm border border-zinc-700/60">
                           {item.category}
                         </span>
+                      </div>
+
+                      {/* Quick Crop / Adjust Hover Overlay Button */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-auto">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(item)}
+                          className="px-3 py-1.5 bg-[#E5BE7A] text-zinc-950 hover:bg-white rounded-lg text-xs font-semibold shadow-lg transition-all flex items-center gap-1.5 active:scale-95"
+                        >
+                          <Crop className="w-3.5 h-3.5" />
+                          <span>Crop & Adjust</span>
+                        </button>
                       </div>
 
                       {/* Focal Indicator Badge */}
@@ -1086,7 +1271,7 @@ export default function AdminPage() {
                       </p>
                       {item.quote && (
                         <p className="text-xs text-zinc-400 font-normal line-clamp-2 pt-2 border-t border-zinc-800/80">
-                          "{item.quote}"
+                          &ldquo;{item.quote}&rdquo;
                         </p>
                       )}
                     </div>
@@ -1095,6 +1280,9 @@ export default function AdminPage() {
                   {/* Actions Bar */}
                   <div className="px-4 py-3 bg-zinc-900/60 border-t border-zinc-800/80 flex items-center justify-between">
                     <div className="flex items-center gap-1">
+                      <span className="p-1.5 text-zinc-500 cursor-grab active:cursor-grabbing hover:text-zinc-300" title="Drag to reorder sequence">
+                        <GripVertical className="w-4 h-4" />
+                      </span>
                       <button
                         onClick={() => handleMoveGalleryItem(index, 'up')}
                         disabled={index === 0}
@@ -1522,7 +1710,11 @@ export default function AdminPage() {
                     ref={fileInputRef}
                     accept="image/*"
                     onChange={(e) => {
-                      if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
+                      if (e.target.files?.[0]) {
+                        handleFileSelect(e.target.files[0]);
+                        // Clear value so the same file can be re-selected if retried
+                        e.target.value = '';
+                      }
                     }}
                     className="hidden"
                   />
@@ -1536,6 +1728,22 @@ export default function AdminPage() {
                     {isUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                     <span>{isUploading ? 'Uploading...' : 'Upload'}</span>
                   </button>
+
+                  {/* Quick Crop & Resize Button when image is available */}
+                  {formData.image && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCropImageSrc(formData.image);
+                        setShowCropper(true);
+                      }}
+                      className="px-3 py-2 bg-[#E5BE7A]/15 hover:bg-[#E5BE7A]/25 text-[#E5BE7A] border border-[#E5BE7A]/40 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 active:scale-95 shadow-sm"
+                      title="Open rectangular cropper to drag, resize, and adjust frame"
+                    >
+                      <Crop className="w-3.5 h-3.5" />
+                      <span>Crop / Resize</span>
+                    </button>
+                  )}
                 </div>
 
                 {uploadError && (
@@ -1543,7 +1751,7 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* LIVE FRAME PREVIEW & MANUAL HEAD POSITION SLIDER */}
+              {/* LIVE FRAME PREVIEW & INTERACTIVE DRAGGABLE FRAME SIMULATION */}
               {formData.image && (
                 <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
                   <div className="flex items-center justify-between text-xs text-zinc-300">
@@ -1551,22 +1759,52 @@ export default function AdminPage() {
                       <Sliders className="w-3.5 h-3.5 text-zinc-400" />
                       Frame & Head Position (Vertical Alignment)
                     </span>
-                    <span className="font-mono text-zinc-400">Offset: {focalPercent}%</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-zinc-400">Offset: {focalPercent}%</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCropImageSrc(formData.image);
+                          setShowCropper(true);
+                        }}
+                        className="px-2 py-0.5 rounded text-[11px] bg-zinc-800 hover:bg-zinc-700 text-[#E5BE7A] border border-[#E5BE7A]/30 flex items-center gap-1 font-medium transition-colors"
+                        title="Open interactive rectangular cropper & resizer"
+                      >
+                        <Crop className="w-3 h-3" />
+                        <span>Open Cropper</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Frame Simulation Box */}
-                  <div className="relative w-full h-52 sm:h-56 rounded-lg overflow-hidden bg-black border border-zinc-800 shadow-inner">
+                  {/* Frame Simulation Box (Interactively Draggable via Pointer Events) */}
+                  <div 
+                    ref={simulationRef}
+                    onPointerDown={handleSimulationPointerDown}
+                    onPointerMove={handleSimulationPointerMove}
+                    onPointerUp={handleSimulationPointerUp}
+                    className="relative w-full h-52 sm:h-56 rounded-lg overflow-hidden bg-black border border-zinc-800 shadow-inner cursor-ns-resize group select-none touch-none"
+                    title="Click and drag vertically to reposition head & frame"
+                  >
                     <img
                       src={formData.image}
                       alt="Frame preview"
-                      className="w-full h-full object-cover transition-all duration-150"
+                      className="w-full h-full object-cover transition-all duration-75 pointer-events-none"
                       style={{ objectPosition: `center ${focalPercent}%` }}
                     />
 
                     {/* Subtle Frame Guide Overlay */}
                     <div className="absolute inset-0 pointer-events-none border border-zinc-700/40 rounded-lg" />
-                    <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300">
-                      Live Frame Simulation
+                    <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-zinc-300 pointer-events-none flex items-center gap-1 backdrop-blur-sm border border-zinc-700/60">
+                      <Move className="w-2.5 h-2.5 text-[#E5BE7A]" />
+                      <span>Drag vertically to adjust alignment</span>
+                    </div>
+
+                    {/* Center Drag Cue visible on hover */}
+                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <span className="text-[11px] font-medium bg-black/85 text-zinc-200 px-3 py-1 rounded-full border border-zinc-700 backdrop-blur-sm shadow-md flex items-center gap-1.5">
+                        <Move className="w-3 h-3 text-[#E5BE7A]" />
+                        <span>Drag up/down to reposition frame</span>
+                      </span>
                     </div>
                   </div>
 
@@ -1698,6 +1936,21 @@ export default function AdminPage() {
 
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* INTERACTIVE RECTANGULAR IMAGE CROPPER & RESIZER (Image 2 Reference UX) */}
+      {/* ========================================================================= */}
+      {showCropper && (
+        <ImageCropperModal
+          isOpen={showCropper}
+          imageSrc={cropImageSrc}
+          onClose={() => setShowCropper(false)}
+          onCropComplete={handleCropComplete}
+          onRetake={() => fileInputRef.current?.click()}
+          initialAspectRatio={4 / 3}
+          title="Drag the image to adjust"
+        />
       )}
 
     </div>
