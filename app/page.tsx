@@ -822,6 +822,8 @@ export default function App() {
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
+          -webkit-box-decoration-break: clone;
+          box-decoration-break: clone;
           animation: lightGoldShimmer 4.8s ease-in-out infinite;
           display: inline-block;
           padding-top: 0.35em;
@@ -1151,14 +1153,7 @@ export default function App() {
                     {/* Top Line: Sonal / સોનલ / सोनल in Big Letters */}
                     <div className="overflow-visible pt-2 pb-1">
                       <span className="block gold-shimmer-text overflow-visible">
-                        {NAME_LANGUAGES[currentLangIdx].id === 'en' ? (
-                          <>
-                            <span id="hero-initial-s" className="inline-block relative">S</span>
-                            {NAME_LANGUAGES[currentLangIdx].line1.slice(1)}
-                          </>
-                        ) : (
-                          NAME_LANGUAGES[currentLangIdx].line1
-                        )}
+                        {NAME_LANGUAGES[currentLangIdx].line1}
                       </span>
                     </div>
 
