@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAdminClient } from '@/lib/supabase';
+import { getAdminClient, getEnv } from '@/lib/supabase';
 import { verifyAdminRequest } from '@/lib/auth';
 
 export const runtime = 'edge';
@@ -26,50 +26,63 @@ export async function POST(req) {
 
     const supabase = getAdminClient();
     
-    // 1. Try Supabase storage if available
-    if (supabase) {
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from('uploads')
-          .upload(fileName, file, { contentType: file.type || 'image/jpeg', upsert: true });
-
-        if (!uploadError) {
-          const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
-          if (publicUrlData?.publicUrl) {
-            return NextResponse.json({ 
-              success: true, 
-              url: publicUrlData.publicUrl, 
-              fileName,
-              storage: 'supabase' 
-            });
-          }
-        } else {
-          console.warn('Supabase storage upload error:', uploadError.message);
-        }
-      } catch (storageErr) {
-        console.warn('Supabase storage upload unsuccessful, falling back to data URL:', storageErr);
+    // Check if Supabase client is configured
+    if (!supabase) {
+      const url = getEnv('NEXT_PUBLIC_SUPABASE_URL');
+      const key = getEnv('SUPABASE_SERVICE_ROLE_KEY');
+      const missing = [];
+      if (!url || url.includes('YOUR-PROJECT') || !url.startsWith('https://')) {
+        missing.push('NEXT_PUBLIC_SUPABASE_URL');
       }
+      if (!key || key.includes('YOUR_SERVICE_ROLE_KEY')) {
+        missing.push('SUPABASE_SERVICE_ROLE_KEY');
+      }
+
+      const errorMsg = `Supabase is not configured. Missing or placeholder credentials: [${missing.join(', ')}]. Please configure real Supabase credentials in your environment variables.`;
+      console.error('[Upload API Error]:', errorMsg);
+      return NextResponse.json({ 
+        error: errorMsg,
+        missing,
+        storage: null 
+      }, { status: 500 });
     }
 
-    // 2. Resilient Edge Fallback: Convert to Base64 Data URL (Supported everywhere with 0 external dependencies)
+    // Convert file to ArrayBuffer for universal edge/node streaming
     const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    const mimeType = file.type || 'image/jpeg';
-    const base64DataUrl = `data:${mimeType};base64,${btoa(binary)}`;
 
-    return NextResponse.json({
-      success: true,
-      url: base64DataUrl,
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('uploads')
+      .upload(fileName, arrayBuffer, { 
+        contentType: file.type || 'image/jpeg', 
+        upsert: true 
+      });
+
+    if (uploadError) {
+      console.error('[Supabase Storage Upload Error]:', uploadError.message, uploadError);
+      return NextResponse.json({ 
+        error: `Supabase Storage upload failed: ${uploadError.message}`,
+        details: uploadError
+      }, { status: 500 });
+    }
+
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(fileName);
+    if (!publicUrlData?.publicUrl) {
+      const errorMsg = 'Failed to retrieve public URL from Supabase Storage.';
+      console.error('[Upload API Error]:', errorMsg);
+      return NextResponse.json({ error: errorMsg }, { status: 500 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      url: publicUrlData.publicUrl, 
       fileName,
-      storage: 'memory',
-      note: 'Processed via in-memory data URL fallback'
+      storage: 'supabase' 
     });
   } catch (err) {
-    console.error('File upload error:', err);
-    return NextResponse.json({ error: 'Failed to upload image.' }, { status: 500 });
+    console.error('[Upload API Fatal Error]:', err);
+    return NextResponse.json({ 
+      error: `Upload failed: ${err.message || 'Unknown error'}`,
+      details: err?.message || String(err)
+    }, { status: 500 });
   }
 }

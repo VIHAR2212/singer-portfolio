@@ -784,10 +784,14 @@ create policy "Allow delete from uploads bucket" on storage.objects for delete u
         setHeroForm(prev => ({ ...prev, image: data.url }));
         showToast('Hero portrait photo uploaded.');
       } else {
-        setUploadError(data.error || 'Upload failed');
+        const errMsg = data.error || 'Upload failed';
+        setUploadError(errMsg);
+        showToast(`Upload error: ${errMsg}`);
       }
-    } catch {
-      setUploadError('Network error uploading image.');
+    } catch (e: any) {
+      const errMsg = e?.message || 'Network error uploading image.';
+      setUploadError(errMsg);
+      showToast(`Upload error: ${errMsg}`);
     } finally {
       setIsUploading(false);
     }
@@ -807,10 +811,14 @@ create policy "Allow delete from uploads bucket" on storage.objects for delete u
         setRiyazForm(prev => ({ ...prev, image: data.url }));
         showToast('Musical journey photo uploaded.');
       } else {
-        setUploadError(data.error || 'Upload failed');
+        const errMsg = data.error || 'Upload failed';
+        setUploadError(errMsg);
+        showToast(`Upload error: ${errMsg}`);
       }
-    } catch {
-      setUploadError('Network error uploading image.');
+    } catch (e: any) {
+      const errMsg = e?.message || 'Network error uploading image.';
+      setUploadError(errMsg);
+      showToast(`Upload error: ${errMsg}`);
     } finally {
       setIsUploading(false);
     }
@@ -949,10 +957,14 @@ create policy "Allow delete from uploads bucket" on storage.objects for delete u
         setFormData(prev => ({ ...prev, image: data.url }));
         showToast('Photo uploaded successfully.');
       } else {
-        setUploadError(data.error || 'Upload failed');
+        const errMsg = data.error || 'Upload failed';
+        setUploadError(errMsg);
+        showToast(`Upload error: ${errMsg}`);
       }
-    } catch {
-      setUploadError('Network error uploading image.');
+    } catch (e: any) {
+      const errMsg = e?.message || 'Network error uploading image.';
+      setUploadError(errMsg);
+      showToast(`Upload error: ${errMsg}`);
     } finally {
       setIsUploading(false);
     }
@@ -1874,6 +1886,7 @@ create policy "Allow delete from uploads bucket" on storage.objects for delete u
                         <span>Upload</span>
                       </button>
                     </div>
+                    {uploadError && <p className="text-xs text-rose-400 mt-1">{uploadError}</p>}
                   </div>
                 </div>
 
@@ -2083,6 +2096,7 @@ create policy "Allow delete from uploads bucket" on storage.objects for delete u
                         <span>Upload</span>
                       </button>
                     </div>
+                    {uploadError && <p className="text-xs text-rose-400 mt-1">{uploadError}</p>}
                   </div>
 
                   {/* Captions */}
