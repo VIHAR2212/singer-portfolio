@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAdminClient, getEnv } from '@/lib/supabase';
+import { getAdminClient, getEnv, getNormalizedSupabaseUrl } from '@/lib/supabase';
 import { verifyAdminRequest } from '@/lib/auth';
 
 export const runtime = 'edge';
@@ -28,10 +28,10 @@ export async function POST(req) {
     
     // Check if Supabase client is configured
     if (!supabase) {
-      const url = getEnv('NEXT_PUBLIC_SUPABASE_URL');
+      const url = getNormalizedSupabaseUrl();
       const key = getEnv('SUPABASE_SERVICE_ROLE_KEY');
       const missing = [];
-      if (!url || url.includes('YOUR-PROJECT') || !url.startsWith('https://')) {
+      if (!url) {
         missing.push('NEXT_PUBLIC_SUPABASE_URL');
       }
       if (!key || key.includes('YOUR_SERVICE_ROLE_KEY')) {

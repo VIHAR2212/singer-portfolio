@@ -136,6 +136,14 @@ export default function AdminPage() {
     tables?: { bookings: boolean; gallery: boolean; site_settings: boolean; storage: boolean };
     message?: string;
     errors?: string[];
+    diagnostics?: {
+      hasCloudflareContext?: boolean;
+      cloudflareEnvKeysFound?: string[];
+      processEnvKeysFound?: string[];
+      detectedUrl?: string | null;
+      detectedKeyLength?: number;
+      detectedKeyRole?: string | null;
+    };
   } | null>(null);
   const [isTestingCloud, setIsTestingCloud] = useState(false);
   const [hasCopiedSql, setHasCopiedSql] = useState(false);
@@ -2747,6 +2755,55 @@ create policy "Allow delete from uploads bucket" on storage.objects for delete u
                 </div>
 
               </div>
+
+              {/* Show Edge Runtime Environment Diagnostics */}
+              {cloudStatus?.diagnostics && (
+                <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800 space-y-3 text-xs">
+                  <div className="flex items-center justify-between text-zinc-400 font-semibold pb-2 border-b border-zinc-800/80">
+                    <span className="flex items-center gap-2">
+                      <Server className="w-4 h-4 text-emerald-400" />
+                      <span>Edge Runtime Environment Diagnostics</span>
+                    </span>
+                    <span className="text-[11px] font-mono text-zinc-500">Cloudflare Pages Edge Context</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                    <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 space-y-1">
+                      <span className="text-zinc-500 block text-[11px] font-sans">Cloudflare Request Context</span>
+                      <span className={cloudStatus.diagnostics.hasCloudflareContext ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>
+                        {cloudStatus.diagnostics.hasCloudflareContext ? "✓ Active (getRequestContext)" : "⚠ Not Detected (Local/Preview)"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 space-y-1">
+                      <span className="text-zinc-500 block text-[11px] font-sans">Supabase Project URL</span>
+                      <span className={cloudStatus.diagnostics.detectedUrl ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
+                        {cloudStatus.diagnostics.detectedUrl ? `✓ Detected (${cloudStatus.diagnostics.detectedUrl})` : "✗ Missing in Environment"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 space-y-1">
+                      <span className="text-zinc-500 block text-[11px] font-sans">Supabase Secret Key</span>
+                      <span className={cloudStatus.diagnostics.detectedKeyLength ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
+                        {cloudStatus.diagnostics.detectedKeyLength 
+                          ? `✓ Detected (${cloudStatus.diagnostics.detectedKeyLength} chars${cloudStatus.diagnostics.detectedKeyRole ? ` • ${cloudStatus.diagnostics.detectedKeyRole}` : ''})` 
+                          : "✗ Missing in Environment"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 space-y-1">
+                      <span className="text-zinc-500 block text-[11px] font-sans">Variables Detected by Cloudflare</span>
+                      <span className="text-zinc-300 block text-[11px] truncate" title={cloudStatus.diagnostics.cloudflareEnvKeysFound?.join(', ') || 'None'}>
+                        {cloudStatus.diagnostics.cloudflareEnvKeysFound?.length 
+                          ? cloudStatus.diagnostics.cloudflareEnvKeysFound.join(', ')
+                          : (cloudStatus.diagnostics.processEnvKeysFound?.length 
+                              ? `process.env: ${cloudStatus.diagnostics.processEnvKeysFound.join(', ')}` 
+                              : "None detected")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Show error logs if any */}
               {cloudStatus?.errors && cloudStatus.errors.length > 0 && (
