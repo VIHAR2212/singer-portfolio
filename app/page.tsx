@@ -3,14 +3,39 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import Lenis from 'lenis';
-import { CircularTestimonials, Testimonial } from '@/components/ui/circular-testimonials';
+import dynamic from 'next/dynamic';
+import type { Testimonial } from '@/components/ui/circular-testimonials';
 import { CelestialMandala } from '@/components/ui/celestial-mandala';
 import MusicalPreloader from '@/components/MusicalPreloader';
+import DustParticles from '@/components/DustParticles';
+import HeroTrilingualTitle from '@/components/HeroTrilingualTitle';
+
+const CircularTestimonials = dynamic(
+  () => import('@/components/ui/circular-testimonials'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-80 rounded-xl bg-[#0E0C0A] border border-white/10 flex items-center justify-center text-[#A39888] font-mono text-xs">
+        Loading Stage Archive...
+      </div>
+    ),
+  }
+);
+
+const LightboxModal = dynamic(() => import('@/components/LightboxModal'), {
+  ssr: false,
+});
+
+const VideoModal = dynamic(() => import('@/components/VideoModal'), {
+  ssr: false,
+});
+
 import { 
   motion, 
   AnimatePresence, 
   useScroll, 
-  useTransform
+  useTransform,
+  useReducedMotion
 } from 'framer-motion';
 import {
   Play,
@@ -59,46 +84,6 @@ const TRACKS_CATALOG: Track[] = [
     ragaOrMood: 'Devotional Bhajan · Bhakti Rasa',
     description: 'A soulful devotional rendition sung with deep emotion, classical grace, and devotion by Sonal Makwana.',
     frequencyHz: 432
-  }
-];
-
-interface NameLanguage {
-  id: string;
-  label: string;
-  nativeLabel: string;
-  line1: string;
-  line2: string;
-  fontClass: string;
-  subtagline: string;
-}
-
-const NAME_LANGUAGES: NameLanguage[] = [
-  {
-    id: 'en',
-    label: 'English',
-    nativeLabel: 'English',
-    line1: 'Sonal',
-    line2: 'Makwana',
-    fontClass: 'font-serif-luxury',
-    subtagline: 'A Voice That Brings Every Celebration to Life.'
-  },
-  {
-    id: 'gu',
-    label: 'Gujarati',
-    nativeLabel: 'ગુજરાતી',
-    line1: 'સોનલ',
-    line2: 'મકવાણા',
-    fontClass: 'font-serif-gujarati',
-    subtagline: 'દરેક ઉત્સવ અને પ્રસંગમાં પ્રાણ પૂરતો સુર'
-  },
-  {
-    id: 'hi',
-    label: 'Hindi',
-    nativeLabel: 'हिन्दी',
-    line1: 'सोनल',
-    line2: 'मकवाणा',
-    fontClass: 'font-serif-devanagari',
-    subtagline: 'हर उत्सव और समारोह में जान फूंकने वाली आवाज़'
   }
 ];
 
@@ -249,12 +234,13 @@ function LuxuryReveal({
   delay?: number;
   yOffset?: number;
 }) {
+  const shouldReduceMotion = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: yOffset }}
+      initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: yOffset }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.85, ease: LUXURY_EASE, delay }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.75, ease: LUXURY_EASE, delay: shouldReduceMotion ? 0 : delay }}
       className={className}
     >
       {children}
@@ -262,103 +248,11 @@ function LuxuryReveal({
   );
 }
 
-// Atmospheric subtle drifting dust motes in auditorium light
-function DustParticles() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    // Respect prefers-reduced-motion
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animationId: number;
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
-
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', handleResize);
-
-    // 22 subtle drifting motes at < 0.035 opacity
-    const particles = Array.from({ length: 22 }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      size: Math.random() * 0.8 + 0.5,
-      opacity: Math.random() * 0.022 + 0.012,
-      vx: (Math.random() - 0.5) * 0.18,
-      vy: -Math.random() * 0.22 - 0.07,
-      wobble: Math.random() * Math.PI * 2,
-    }));
-
-    let isPaused = false;
-    const handleVisibility = () => {
-      isPaused = document.hidden;
-      if (!isPaused && !animationId) {
-        animationId = requestAnimationFrame(render);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    const render = () => {
-      if (isPaused) {
-        animationId = 0;
-        return;
-      }
-      ctx.clearRect(0, 0, width, height);
-
-      particles.forEach((p) => {
-        p.wobble += 0.012;
-        p.x += p.vx + Math.sin(p.wobble) * 0.12;
-        p.y += p.vy;
-
-        if (p.y < -10) {
-          p.y = height + 10;
-          p.x = Math.random() * width;
-        }
-        if (p.x < -10) p.x = width + 10;
-        if (p.x > width + 10) p.x = -10;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(232, 221, 203, ${p.opacity})`;
-        ctx.fill();
-      });
-
-      animationId = requestAnimationFrame(render);
-    };
-
-    animationId = requestAnimationFrame(render);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', handleResize);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-[1] will-change-transform"
-      style={{ opacity: 0.8 }}
-    />
-  );
-}
-
 // Handcrafted Sacred Celestial Classical Mandala for Hero with Counter-Rotating Kinetics
 function HeroMandala() {
   return (
     <div 
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] sm:w-[680px] sm:h-[680px] md:w-[820px] md:h-[820px] lg:w-[950px] lg:h-[950px] xl:w-[1000px] xl:h-[1000px] pointer-events-none z-0 select-none flex items-center justify-center overflow-visible will-change-transform"
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] xs:w-[440px] xs:h-[440px] sm:w-[620px] sm:h-[620px] md:w-[780px] md:h-[780px] lg:w-[920px] lg:h-[920px] xl:w-[980px] xl:h-[980px] pointer-events-none z-0 select-none flex items-center justify-center overflow-visible"
       aria-hidden="true"
     >
       <CelestialMandala opacity={0.22} speedMultiplier={1.2} />
@@ -521,19 +415,6 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Trilingual Artist Name Display State
-  const [currentLangIdx, setCurrentLangIdx] = useState(0);
-  const [isAutoCycling, setIsAutoCycling] = useState(true);
-
-  // Auto-cycle through languages smoothly every 4.2s
-  useEffect(() => {
-    if (!isAutoCycling) return;
-    const interval = setInterval(() => {
-      setCurrentLangIdx((prev) => (prev + 1) % NAME_LANGUAGES.length);
-    }, 4200);
-    return () => clearInterval(interval);
-  }, [isAutoCycling]);
-
   // Booking Form State
   const [formData, setFormData] = useState({
     name: '',
@@ -557,9 +438,26 @@ export default function App() {
   const heroImageY = useTransform(scrollYProgress, [0, 0.3], [0, 40]);
 
   useEffect(() => {
-    tanpuraEngineRef.current = new AmbientTanpuraEngine();
+    // Detect mobile touch devices - use hardware-accelerated native smooth scroll on touch/mobile
+    const isTouchOrMobile =
+      typeof window !== 'undefined' &&
+      (window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window);
 
-    // Initialize Lenis Smooth Scroll
+    if (isTouchOrMobile) {
+      const handleNativeScroll = () => {
+        const scrolled = window.scrollY > 30;
+        setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
+      };
+      window.addEventListener('scroll', handleNativeScroll, { passive: true });
+      return () => {
+        window.removeEventListener('scroll', handleNativeScroll);
+        if (tanpuraEngineRef.current) {
+          tanpuraEngineRef.current.stopDrone();
+        }
+      };
+    }
+
+    // Initialize Lenis Smooth Scroll only on desktop pointer/mousewheel devices
     const lenis = new Lenis({
       duration: 1.15,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -576,14 +474,16 @@ export default function App() {
     }
     animationFrameId = requestAnimationFrame(raf);
 
-    // Sync header scroll state via Lenis
+    // Sync header scroll state without redundant React re-renders
     lenis.on('scroll', (e: { scroll: number }) => {
-      setIsScrolled(e.scroll > 30);
+      const scrolled = e.scroll > 30;
+      setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
     });
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       lenis.destroy();
+      lenisRef.current = null;
       if (tanpuraEngineRef.current) {
         tanpuraEngineRef.current.stopDrone();
       }
@@ -635,28 +535,10 @@ export default function App() {
     setShowVideoModal(true);
   };
 
-  // Keyboard controls for Lightbox and Video Modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setActiveLightboxIndex(null);
-        setShowVideoModal(false);
-      }
-      if (activeLightboxIndex !== null) {
-        if (e.key === 'ArrowRight') {
-          setActiveLightboxIndex(prev => (prev !== null && prev < GALLERY_ARCHIVE.length - 1 ? prev + 1 : 0));
-        }
-        if (e.key === 'ArrowLeft') {
-          setActiveLightboxIndex(prev => (prev !== null && prev > 0 ? prev - 1 : GALLERY_ARCHIVE.length - 1));
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeLightboxIndex, showVideoModal]);
-
   const toggleTanpuraAura = () => {
-    if (!tanpuraEngineRef.current) return;
+    if (!tanpuraEngineRef.current) {
+      tanpuraEngineRef.current = new AmbientTanpuraEngine();
+    }
     if (auraActive) {
       tanpuraEngineRef.current.stopDrone();
       setAuraActive(false);
@@ -972,6 +854,47 @@ export default function App() {
         ::-webkit-scrollbar-thumb:hover {
           background: #3B3227;
         }
+
+        /* Hardware-accelerated CSS marquee for footer watermark */
+        @keyframes footerMarqueeAnim {
+          0% {
+            transform: translate3d(0, 0, 0);
+          }
+          100% {
+            transform: translate3d(-50%, 0, 0);
+          }
+        }
+
+        .footer-watermark-track {
+          animation: footerMarqueeAnim 40s linear infinite;
+          will-change: transform;
+        }
+
+        @media (max-width: 768px), (pointer: coarse) {
+          .bg-handmade-paper {
+            display: none;
+          }
+          .gold-shimmer-text {
+            filter: drop-shadow(0 0 6px rgba(229, 190, 122, 0.2));
+            animation-duration: 7s;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .footer-watermark-track {
+            animation: none;
+          }
+          .gold-shimmer-text {
+            animation: none;
+          }
+          .gold-box-shimmer::before,
+          button[class*="from-[#E5BE7A]"]::before,
+          button[class*="bg-[#E5BE7A]"]::before,
+          button[class*="bg-[#F5EBDD]"]::before,
+          .btn-gold::before {
+            animation: none;
+          }
+        }
       `}</style>
 
       {/* Handcrafted Indian Luxury Background Layers */}
@@ -1137,46 +1060,8 @@ export default function App() {
           
           {/* Left Column: Artist Title and Introduction */}
           <div className="lg:col-span-7 space-y-6 z-10">
-
-            {/* Grand Artist Title with Trilingual Transitions & Continuous Light Gold Shimmer */}
-            <div className="space-y-3">
-              <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-[104px] font-normal leading-[0.98] tracking-tight min-h-[2.1em] flex flex-col justify-center overflow-visible">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={NAME_LANGUAGES[currentLangIdx].id}
-                    initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -16, filter: "blur(4px)" }}
-                    transition={{ duration: 0.6, ease: LUXURY_EASE }}
-                    className={`block ${NAME_LANGUAGES[currentLangIdx].fontClass} overflow-visible`}
-                  >
-                    {/* Top Line: Sonal / સોનલ / सोनल in Big Letters */}
-                    <div className="overflow-visible pt-2 pb-1">
-                      <span className="block gold-shimmer-text overflow-visible">
-                        {NAME_LANGUAGES[currentLangIdx].line1}
-                      </span>
-                    </div>
-
-                    {/* Bottom Line: Makwana / મકવાણા / मकवाणा in Big Letters */}
-                    <div className="overflow-visible pt-1 pb-2">
-                      <span className={`block gold-shimmer-text overflow-visible ${NAME_LANGUAGES[currentLangIdx].id === 'en' ? 'italic font-light' : 'font-normal'}`}>
-                        {NAME_LANGUAGES[currentLangIdx].line2}
-                      </span>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </h1>
-
-              {/* Sub-tagline (reveals at 0.85s) */}
-              <motion.p 
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: LUXURY_EASE, delay: 0.85 }}
-                className="text-sm sm:text-base uppercase tracking-[0.2em] text-[#E5BE7A] font-light pt-2 will-change-transform"
-              >
-                A Voice That Brings Every Celebration to Life.
-              </motion.p>
-            </div>
+            {/* Grand Artist Title with Trilingual Transitions & Continuous Light Gold Shimmer (Isolated Component) */}
+            <HeroTrilingualTitle />
 
             {/* Bio Paragraph (reveals at 0.95s) */}
             <motion.p 
@@ -2064,16 +1949,7 @@ export default function App() {
       <footer className="relative w-full border-t border-white/[0.08] overflow-hidden pt-20 pb-12">
         {/* Monumental Watermark Sliding Left Slowly Behind Footer Elements */}
         <div className="absolute inset-0 flex items-center pointer-events-none select-none overflow-hidden -z-0">
-          <motion.div
-            initial={{ x: "0%" }}
-            animate={{ x: "-50%" }}
-            transition={{
-              duration: 40,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="flex items-center whitespace-nowrap will-change-transform"
-          >
+          <div className="flex items-center whitespace-nowrap footer-watermark-track">
             <div className="flex items-center shrink-0">
               <span className="font-serif-luxury text-[32vw] sm:text-[22vw] lg:text-[18vw] font-normal tracking-[0.06em] uppercase leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#F5EBDD]/[0.07] via-[#E5BE7A]/[0.04] to-transparent pr-12 sm:pr-24">
                 SONAL MAKWANA
@@ -2090,7 +1966,7 @@ export default function App() {
                 SONAL MAKWANA
               </span>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12">
@@ -2157,181 +2033,36 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Lightbox Modal */}
-      <AnimatePresence>
-        {activeLightboxIndex !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: LUXURY_EASE }}
-            className="fixed inset-0 z-50 bg-[#0B0705]/98 flex items-center justify-center p-4 md:p-12 select-none"
-          >
-            <button
-              onClick={() => setActiveLightboxIndex(null)}
-              className="absolute top-6 right-6 z-50 text-xs sm:text-sm uppercase tracking-wider text-[#C4B7A5] hover:text-white transition-colors p-2 flex items-center gap-1.5 hover:-translate-y-[1px] active:scale-[0.98] font-medium"
-              aria-label="Close Lightbox"
-            >
-              <span>Close</span>
-              <X className="w-4 h-4" />
-            </button>
+      {/* Lightbox Modal (Dynamically Loaded) */}
+      {activeLightboxIndex !== null && (
+        <LightboxModal
+          activeIndex={activeLightboxIndex}
+          onClose={() => setActiveLightboxIndex(null)}
+          onPrev={() =>
+            setActiveLightboxIndex((prev) =>
+              prev !== null && prev > 0 ? prev - 1 : stageMoments.length - 1
+            )
+          }
+          onNext={() =>
+            setActiveLightboxIndex((prev) =>
+              prev !== null && prev < stageMoments.length - 1 ? prev + 1 : 0
+            )
+          }
+          items={stageMoments}
+        />
+      )}
 
-            <button
-              onClick={() => setActiveLightboxIndex(prev => (prev !== null && prev > 0 ? prev - 1 : GALLERY_ARCHIVE.length - 1))}
-              className="absolute left-6 z-50 text-xs sm:text-sm uppercase tracking-wider text-[#C4B7A5] hover:text-white transition-colors p-3 hidden sm:flex items-center gap-1 hover:-translate-y-[1px] active:scale-[0.98] font-medium"
-              aria-label="Previous Image"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span>PREV</span>
-            </button>
-
-            <button
-              onClick={() => setActiveLightboxIndex(prev => (prev !== null && prev < GALLERY_ARCHIVE.length - 1 ? prev + 1 : 0))}
-              className="absolute right-6 z-50 text-xs sm:text-sm uppercase tracking-wider text-[#C4B7A5] hover:text-white transition-colors p-3 hidden sm:flex items-center gap-1 hover:-translate-y-[1px] active:scale-[0.98] font-medium"
-              aria-label="Next Image"
-            >
-              <span>NEXT</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-
-            <motion.div 
-              initial={{ scale: 0.98, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.98, opacity: 0 }}
-              transition={{ duration: 0.4, ease: LUXURY_EASE }}
-              className="relative max-w-4xl w-full luxury-card p-6 sm:p-8 flex flex-col md:flex-row items-center gap-8 will-change-transform"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-full md:w-3/5 aspect-[16/10] bg-[#14110E] border border-white/10 overflow-hidden">
-                <img
-                  src={stageMoments[activeLightboxIndex]?.src || GALLERY_ARCHIVE[0].image}
-                  alt={stageMoments[activeLightboxIndex]?.name || 'Stage Photo'}
-                  className="w-full h-full object-cover transition-transform duration-300"
-                  style={{
-                    objectPosition: stageMoments[activeLightboxIndex]?.objectPosition || 'center 20%',
-                    transform: `scale(${stageMoments[activeLightboxIndex]?.scale || 1}) rotate(${stageMoments[activeLightboxIndex]?.rotation || 0}deg)`,
-                    transformOrigin: stageMoments[activeLightboxIndex]?.objectPosition || 'center 20%'
-                  }}
-                />
-              </div>
-
-              <div className="w-full md:w-2/5 space-y-4">
-                <span className="font-mono text-xs sm:text-sm text-[#E5BE7A] font-medium">
-                  PHOTO [{String(activeLightboxIndex + 1).padStart(2, '0')} / {String(stageMoments.length).padStart(2, '0')}]
-                </span>
-
-                <h3 className="font-serif-luxury text-2xl sm:text-3xl text-[#F5EBDD]">
-                  {stageMoments[activeLightboxIndex]?.name || 'Stage Performance'}
-                </h3>
-
-                <div className="text-xs sm:text-sm text-[#E5BE7A] font-mono uppercase tracking-wider font-medium">
-                  Occasion: {stageMoments[activeLightboxIndex]?.designation || 'Live Concert'}
-                </div>
-
-                <p className="text-sm text-[#D8CDC0] font-light leading-relaxed pt-3 border-t border-white/[0.08]">
-                  {stageMoments[activeLightboxIndex]?.quote || 'Live stage performance moment by Sonal Makwana.'}
-                </p>
-
-                <div className="pt-4 flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-[#A39888] font-mono">
-                    Stage Gallery
-                  </span>
-                  <button
-                    onClick={() => setActiveLightboxIndex(null)}
-                    className="px-4 py-2 border border-[#E5BE7A]/40 text-[#E5BE7A] hover:bg-[#E5BE7A] hover:text-[#0B0705] text-xs sm:text-sm font-mono uppercase tracking-wider transition-colors font-medium"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Video Modal with Prominent Close Controls */}
-      <AnimatePresence>
-        {showVideoModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: LUXURY_EASE }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowVideoModal(false);
-            }}
-            className="fixed inset-0 z-50 bg-[#0B0705]/95 backdrop-blur-md flex items-center justify-center p-4 md:p-8 cursor-pointer overflow-y-auto"
-          >
-
-            <motion.div 
-              initial={{ scale: 0.98, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.98, opacity: 0 }}
-              transition={{ duration: 0.4, ease: LUXURY_EASE }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-4xl bg-[#0E0C0A] luxury-card p-4 sm:p-6 will-change-transform space-y-4 border border-[#E5BE7A]/30 shadow-2xl cursor-default my-auto"
-            >
-              {/* Prominent Modal Header Bar */}
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#E5BE7A] animate-pulse" />
-                  <span className="font-mono text-xs sm:text-sm text-[#E5BE7A] uppercase tracking-wider font-semibold">
-                    {siteSettings.livePerformance?.title || "Live Concert Showcase Reel"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowVideoModal(false)}
-                  className="px-4 py-1.5 bg-[#E5BE7A] hover:bg-white text-[#090807] font-semibold text-xs sm:text-sm uppercase tracking-wider rounded flex items-center gap-1.5 transition-all shadow-md active:scale-95"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Close [Esc]</span>
-                </button>
-              </div>
-
-              {/* 16:9 Video Player */}
-              <div className="aspect-[16/9] w-full overflow-hidden bg-black border border-white/15 shadow-2xl">
-                <iframe
-                  className="w-full h-full"
-                  src={`https://www.youtube-nocookie.com/embed/${siteSettings.livePerformance?.videoId || "RXVnBqGBi9A"}?autoplay=1&controls=1&rel=0`}
-                  title={siteSettings.livePerformance?.title || "Sonal Makwana Live Concert Showcase Reel"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-
-              {/* Modal Footer with Channel Links and Return Button */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-2 text-xs sm:text-sm">
-                <div>
-                  <span className="font-serif-luxury text-xl sm:text-2xl text-[#F5EBDD] block">
-                    {siteSettings.livePerformance?.title || "Sonal Makwana Live Performance"}
-                  </span>
-                  <span className="text-xs sm:text-sm uppercase tracking-wider text-[#A39888]">
-                    {siteSettings.livePerformance?.subtitle || "Classical · Devotional · Garba · Folk Raas"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowVideoModal(false)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-white/20 text-[#C4B7A5] hover:text-white hover:border-[#E5BE7A] text-xs sm:text-[13px] uppercase tracking-wider font-mono transition-colors font-medium"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                    <span>Return to Site</span>
-                  </button>
-                  <a
-                    href={siteSettings.livePerformance?.channelUrl || "https://www.youtube.com/@SonalMakwana-zb7qc"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-[#E5BE7A]/40 text-[#E5BE7A] hover:bg-[#E5BE7A] hover:text-black text-xs sm:text-[13px] uppercase tracking-wider font-mono transition-colors font-medium"
-                  >
-                    <span>YouTube Channel</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Video Modal with Prominent Close Controls (Dynamically Loaded) */}
+      {showVideoModal && (
+        <VideoModal
+          isOpen={showVideoModal}
+          onClose={() => setShowVideoModal(false)}
+          title={siteSettings.livePerformance?.title}
+          subtitle={siteSettings.livePerformance?.subtitle}
+          videoId={siteSettings.livePerformance?.videoId}
+          channelUrl={siteSettings.livePerformance?.channelUrl}
+        />
+      )}
 
       {/* Hidden YouTube audio player stream for Featured Song - Lazy Loaded on Demand */}
       {loadAudioPlayer && (

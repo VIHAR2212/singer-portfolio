@@ -24,7 +24,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     let phraseIndex = 0;
     let charIndex = 0;
     let isDeleting = false;
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
 
     const handleTypewriterLoop = () => {
       const currentPhrase = phrases[phraseIndex];
@@ -37,72 +37,47 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
 
       setTypedText(currentPhrase.substring(0, charIndex));
 
-      let delay = isDeleting ? 45 : 95 + Math.random() * 30;
+      let delay = isDeleting ? 40 : 80;
 
       if (!isDeleting && charIndex === currentPhrase.length) {
-        delay = 2000; // Pause when phrase is complete
+        delay = 1400; // Pause when phrase is complete
         isDeleting = true;
       } else if (isDeleting && charIndex === 0) {
         isDeleting = false;
         phraseIndex = (phraseIndex + 1) % phrases.length;
-        delay = 400; // Pause before typing next phrase
+        delay = 300;
       }
 
       timer = setTimeout(handleTypewriterLoop, delay);
     };
 
-    timer = setTimeout(handleTypewriterLoop, 200);
+    timer = setTimeout(handleTypewriterLoop, 150);
     return () => clearTimeout(timer);
   }, []);
 
-  // Background site loading readiness check
+  // Background site loading readiness check - FAST & NON-BLOCKING
   useEffect(() => {
     let isMounted = true;
 
-    const checkReadiness = async () => {
-      // 1. Wait for document complete
-      if (document.readyState !== 'complete') {
-        await new Promise((res) => {
-          const handler = () => {
-            window.removeEventListener('load', handler);
-            res(true);
-          };
-          window.addEventListener('load', handler);
-        });
-      }
-
-      // 2. Wait for fonts
-      if (document.fonts && document.fonts.ready) {
-        try {
-          await document.fonts.ready;
-        } catch {
-          // ignore
-        }
-      }
-
-      // 3. Preload critical hero portrait
-      await new Promise((res) => {
-        if (typeof window !== 'undefined' && window.Image) {
-          const img = new window.Image();
-          img.src = '/sonal-hero-portrait.webp';
-          img.onload = () => res(true);
-          img.onerror = () => res(true);
-        } else {
-          res(true);
-        }
-      });
-
-      if (isMounted) {
-        setIsPageReady(true);
+    const checkReadiness = () => {
+      // If document already complete/interactive, trigger ready immediately
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        if (isMounted) setIsPageReady(true);
+      } else {
+        const onReady = () => {
+          if (isMounted) setIsPageReady(true);
+        };
+        window.addEventListener('DOMContentLoaded', onReady, { once: true });
+        window.addEventListener('load', onReady, { once: true });
       }
     };
 
     checkReadiness();
 
-    // Safety timeout: never hang longer than 4.5s
+    // Safety fallback: never hang longer than 1.5s
     const safetyTimer = setTimeout(() => {
       if (isMounted) setIsPageReady(true);
-    }, 4500);
+    }, 1500);
 
     return () => {
       isMounted = false;
@@ -110,76 +85,73 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     };
   }, []);
 
-  // When website is ready in background, fade out smoothly
+  // When website is ready, fade out gracefully without artificial delay
   useEffect(() => {
     if (!isPageReady) return;
 
-    // Minimum brief show (1.2s) so the animation is perceived
+    // Brief grace period (350ms) so user gets the elegant intro glimpse without waiting
     const minTimer = setTimeout(() => {
       setIsFadingOut(true);
 
       const dismissTimer = setTimeout(() => {
         setIsDismissed(true);
         if (onComplete) onComplete();
-      }, 650);
+      }, 500);
 
       return () => clearTimeout(dismissTimer);
-    }, 1200);
+    }, 350);
 
     return () => clearTimeout(minTimer);
   }, [isPageReady, onComplete]);
 
-  // Main Canvas Animation Engine
+  // Main Canvas Animation Engine - OPTIMIZED: no shadowBlur, DPR capped, low spline steps
   useEffect(() => {
+    if (isDismissed) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Color definitions
     const COLOR_PRIMARY = '#e2b989';
     const COLOR_SECONDARY = '#9c734b';
-    const COLOR_GLOW = 'rgba(226, 185, 137, 0.18)';
     const COLOR_PARTICLE = '#fadbb5';
 
     let width = 0;
     let height = 0;
-    let animationId: number;
+    let animationId = 0;
     let isPaused = false;
+    let isMobile = false;
 
     function resizeCanvas() {
       if (!canvas || !ctx) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Cap DPR to 1.0 on mobile, 1.25 on desktop
+      isMobile = window.innerWidth < 768;
+      const dpr = isMobile ? 1.0 : Math.min(window.devicePixelRatio || 1, 1.25);
       width = window.innerWidth;
       height = window.innerHeight;
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
-      ctx.resetTransform();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     }
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', resizeCanvas, { passive: true });
 
     function getStaffPoint(t: number) {
-      // Gentle harmonic oscillation along the curve, dampened at the extreme ends
-      const wave = Math.sin(t * Math.PI * 2.2 - performance.now() * 0.0014) * 8 * Math.sin(t * Math.PI);
-      const isMobile = width < 768;
+      const wave = Math.sin(t * Math.PI * 2.2 - performance.now() * 0.0014) * 6 * Math.sin(t * Math.PI);
 
       let p0: { x: number; y: number }, p1: { x: number; y: number }, p2: { x: number; y: number }, p3: { x: number; y: number };
       if (isMobile) {
-        // Mobile layout: staff flows gracefully along the left edge in the upper half
-        // leaving the upper-right open for the text, then swoops down toward the bottom right
         p0 = { x: width * -0.05, y: -30 };
-        p1 = { x: width * 0.28,  y: height * 0.20 };
-        p2 = { x: width * 0.12,  y: height * 0.58 };
-        p3 = { x: width * 0.98,  y: height * 0.96 };
+        p1 = { x: width * 0.28, y: height * 0.2 };
+        p2 = { x: width * 0.12, y: height * 0.58 };
+        p3 = { x: width * 0.98, y: height * 0.96 };
       } else {
-        // Laptop & desktop layout: expansive diagonal swoop from upper left down to bottom-right corner
         p0 = { x: width * -0.02, y: -40 };
-        p1 = { x: width * 0.28,  y: height * 0.22 };
-        p2 = { x: width * 0.18,  y: height * 0.62 };
-        p3 = { x: width * 0.97,  y: height * 0.97 };
+        p1 = { x: width * 0.28, y: height * 0.22 };
+        p2 = { x: width * 0.18, y: height * 0.62 };
+        p3 = { x: width * 0.97, y: height * 0.97 };
       }
 
       const u = 1 - t;
@@ -195,20 +167,14 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     }
 
     function getStaffSpacing(t: number) {
-      const isMobile = width < 768;
-      // Narrow spacing at bottom side
       const narrowDownsideSpacing = isMobile ? 8.5 : 10.5;
-      // Wide spacing from upper side
-      const wideTopSpacing = isMobile ? 26 : 35;
-
-      // Smooth taper: wide at t=0, gradually narrowing towards t=1 (bottom-right ending)
+      const wideTopSpacing = isMobile ? 24 : 32;
       const taper = Math.pow(1 - t, 0.88);
       return narrowDownsideSpacing + (wideTopSpacing - narrowDownsideSpacing) * taper;
     }
 
-    // Normal vectors along the path for parallel 5-line staff calculation
     function getStaffNormal(t: number) {
-      const delta = 0.005;
+      const delta = 0.008;
       const t1 = Math.max(0, t - delta);
       const t2 = Math.min(1, t + delta);
       const p1 = getStaffPoint(t1);
@@ -221,7 +187,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
       return {
         nx: -dy / len,
         ny: dx / len,
-        angle: Math.atan2(dy, dx)
+        angle: Math.atan2(dy, dx),
       };
     }
 
@@ -238,20 +204,17 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     }
 
     const PARTICLES: Particle[] = [];
-    function spawnParticles(x: number, y: number, count = 2) {
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 0.8 + 0.3;
-        PARTICLES.push({
-          x,
-          y,
-          vx: Math.cos(angle) * velocity,
-          vy: Math.sin(angle) * velocity - 0.15,
-          life: 1.0,
-          decay: Math.random() * 0.02 + 0.015,
-          size: Math.random() * 1.8 + 0.8
-        });
-      }
+    function spawnParticles(x: number, y: number) {
+      if (PARTICLES.length > 20) return;
+      PARTICLES.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: -Math.random() * 0.6 - 0.1,
+        life: 1.0,
+        decay: Math.random() * 0.03 + 0.02,
+        size: Math.random() * 1.5 + 0.8,
+      });
     }
 
     function updateAndDrawParticles() {
@@ -271,8 +234,6 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
         ctx.fillStyle = COLOR_PARTICLE;
-        ctx.shadowColor = COLOR_GLOW;
-        ctx.shadowBlur = 2;
         ctx.globalAlpha = p.life * 0.65;
         ctx.fill();
       }
@@ -287,8 +248,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
       opacity: number;
 
       constructor(initialT = 0) {
-        this.t = initialT; // Progress along spline 0 to 1
-        // Allow placement on both lines (-2, -1, 0, 1, 2) and spaces (-1.5, -0.5, 0.5, 1.5)
+        this.t = initialT;
         const possiblePositions = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2];
         this.lineIndex = possiblePositions[Math.floor(Math.random() * possiblePositions.length)];
         this.speed = 0.0016 + Math.random() * 0.0012;
@@ -299,7 +259,6 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
       update() {
         this.t += this.speed;
 
-        // Smooth fade-in near top, fade-out near exit
         if (this.t < 0.12) {
           this.opacity = this.t / 0.12;
         } else if (this.t > 0.86) {
@@ -308,10 +267,9 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
           this.opacity = 1;
         }
 
-        // Periodically emit micro-sparks
-        if (Math.random() < 0.06 && this.opacity > 0.4) {
+        if (Math.random() < 0.04 && this.opacity > 0.4) {
           const pos = this.getPosition();
-          spawnParticles(pos.x, pos.y, 1);
+          spawnParticles(pos.x, pos.y);
         }
       }
 
@@ -323,7 +281,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
           x: center.x + norm.nx * (this.lineIndex * currentSpacing),
           y: center.y + norm.ny * (this.lineIndex * currentSpacing),
           angle: norm.angle,
-          lineSpacing: currentSpacing
+          lineSpacing: currentSpacing,
         };
       }
 
@@ -337,9 +295,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
         context.rotate(pos.angle);
         context.globalAlpha = this.opacity;
 
-        // Clean, reduced glow
-        context.shadowColor = COLOR_GLOW;
-        context.shadowBlur = 3;
+        // Clean rendering WITHOUT heavy shadowBlur
         context.fillStyle = COLOR_PRIMARY;
         context.strokeStyle = COLOR_PRIMARY;
         context.lineWidth = Math.max(1.5, pos.lineSpacing * 0.16);
@@ -373,7 +329,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
             context.moveTo(s * 0.88, -s * 0.25);
             context.lineTo(s * 0.88, -s * 1.75);
             context.stroke();
-            context.lineWidth = 3.8;
+            context.lineWidth = 3.2;
             context.beginPath();
             context.moveTo(-s * 0.22, -s * 1.5);
             context.lineTo(s * 0.88, -s * 1.75);
@@ -393,7 +349,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
           }
 
           case 'trebleClef': {
-            context.font = `${s * 3.3}px 'Playfair Display', Georgia, serif`;
+            context.font = `${s * 3.2}px 'Playfair Display', Georgia, serif`;
             context.textAlign = 'center';
             context.textBaseline = 'middle';
             context.fillText('𝄞', 0, 0);
@@ -401,7 +357,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
           }
 
           case 'sharp': {
-            context.font = `${s * 1.7}px monospace`;
+            context.font = `${s * 1.6}px monospace`;
             context.textAlign = 'center';
             context.textBaseline = 'middle';
             context.fillText('♯', 0, 0);
@@ -413,9 +369,9 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
             context.beginPath();
             context.moveTo(0, -h / 2);
             context.lineTo(0, h / 2);
-            context.lineWidth = 2.4;
+            context.lineWidth = 2.2;
             context.stroke();
-            context.lineWidth = 1.2;
+            context.lineWidth = 1.1;
             context.moveTo(4, -h / 2);
             context.lineTo(4, h / 2);
             context.stroke();
@@ -428,14 +384,14 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     }
 
     const NOTES_POOL: FlowNote[] = [];
-    const targetNoteCount = 8;
+    const targetNoteCount = isMobile ? 5 : 7;
     for (let i = 0; i < targetNoteCount; i++) {
       NOTES_POOL.push(new FlowNote((i / targetNoteCount) * 0.92));
     }
 
     function drawStaffLines() {
       if (!ctx) return;
-      const steps = 95;
+      const steps = isMobile ? 42 : 65;
 
       for (let lineIndex = -2; lineIndex <= 2; lineIndex++) {
         ctx.beginPath();
@@ -456,7 +412,6 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
           }
         }
 
-        // Fading gradient from top to bottom
         const gradient = ctx.createLinearGradient(0, 0, width * 0.88, height);
         gradient.addColorStop(0, 'rgba(226, 185, 137, 0.22)');
         gradient.addColorStop(0.3, COLOR_PRIMARY);
@@ -464,13 +419,11 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
         gradient.addColorStop(1, 'rgba(226, 185, 137, 0.06)');
 
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = lineIndex === 0 ? 2.0 : 1.5;
-        ctx.shadowColor = COLOR_GLOW;
-        ctx.shadowBlur = 2.5;
+        ctx.lineWidth = lineIndex === 0 ? 1.8 : 1.3;
         ctx.stroke();
       }
 
-      // Starting measure bracket at the top of the staff
+      // Top measure bracket
       const topPt = getStaffPoint(0.03);
       const topNorm = getStaffNormal(0.03);
       const topSpacing = getStaffSpacing(0.03);
@@ -478,7 +431,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
       ctx.beginPath();
       ctx.moveTo(topPt.x + topNorm.nx * -topHalfHeight, topPt.y + topNorm.ny * -topHalfHeight);
       ctx.lineTo(topPt.x + topNorm.nx * topHalfHeight, topPt.y + topNorm.ny * topHalfHeight);
-      ctx.lineWidth = 2.8;
+      ctx.lineWidth = 2.4;
       ctx.strokeStyle = COLOR_PRIMARY;
       ctx.stroke();
     }
@@ -492,29 +445,27 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     document.addEventListener('visibilitychange', handleVisibility);
 
     function render() {
-      if (isPaused || !ctx) return;
+      if (isPaused || !ctx || isFadingOut) {
+        animationId = 0;
+        return;
+      }
 
-      // Pure pitch black background
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, width, height);
 
-      // Render 5 staff ribbons
       drawStaffLines();
 
-      // Render flowing notes along the staff
       for (let i = NOTES_POOL.length - 1; i >= 0; i--) {
         const note = NOTES_POOL[i];
         note.update();
         note.draw(ctx);
 
-        // Respawn note once it exits bottom-right of screen
         if (note.t >= 1.0) {
           NOTES_POOL.splice(i, 1);
           NOTES_POOL.push(new FlowNote(0.01));
         }
       }
 
-      // Render stardust particles
       updateAndDrawParticles();
 
       animationId = requestAnimationFrame(render);
@@ -523,11 +474,11 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
     animationId = requestAnimationFrame(render);
 
     return () => {
-      cancelAnimationFrame(animationId);
+      if (animationId) cancelAnimationFrame(animationId);
       window.removeEventListener('resize', resizeCanvas);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [isFadingOut, isDismissed]);
 
   if (isDismissed) {
     return null;
@@ -535,7 +486,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
 
   return (
     <div
-      className={`fixed inset-0 z-[99999] bg-[#000000] text-[#e8cbb0] overflow-hidden select-none pointer-events-auto transition-opacity duration-700 ease-out ${
+      className={`fixed inset-0 z-[99999] bg-[#000000] text-[#e8cbb0] overflow-hidden select-none pointer-events-auto transition-opacity duration-500 ease-out ${
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       aria-label="Loading Sonal Makwana Portfolio"
@@ -560,7 +511,7 @@ export default function MusicalPreloader({ onComplete }: MusicalPreloaderProps) 
       {/* Fullscreen Main Animation Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-0" />
 
-      {/* Right-aligned text positioned comfortably between Top and Middle (approx 25% from top) */}
+      {/* Right-aligned text positioned comfortably */}
       <div className="absolute top-[22%] xs:top-[24%] sm:top-[26%] md:top-[28%] right-5 sm:right-10 md:right-14 lg:right-20 flex flex-col items-end text-right z-10 pointer-events-none select-none max-w-[85vw] sm:max-w-lg md:max-w-2xl">
         <div className="flex items-baseline justify-end flex-wrap sm:flex-nowrap">
           <span className="text-xl xs:text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight text-[#f3dfca] serif-title clean-glow leading-tight">

@@ -45,7 +45,7 @@ export interface CircularTestimonialsProps {
 function calculateGap(width: number) {
   const minWidth = 768;
   const maxWidth = 1456;
-  const minGap = 40;
+  const minGap = 30;
   const maxGap = 80;
   if (width <= minWidth) return minGap;
   if (width >= maxWidth)
@@ -82,24 +82,53 @@ export const CircularTestimonials = ({
   );
 
   useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout>;
     function handleResize() {
-      if (imageContainerRef.current) {
-        setContainerWidth(imageContainerRef.current.offsetWidth);
-      }
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (imageContainerRef.current) {
+          setContainerWidth(imageContainerRef.current.offsetWidth);
+        }
+      }, 100);
     }
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    if (imageContainerRef.current) {
+      setContainerWidth(imageContainerRef.current.offsetWidth);
+    }
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
+  // Pause autoplay when document is hidden
   useEffect(() => {
-    if (autoplay && testimonialsLength > 1) {
-      autoplayIntervalRef.current = setInterval(() => {
-        setActiveIndex((prev) => (prev + 1) % testimonialsLength);
-      }, 5500);
-    }
+    const startAutoplay = () => {
+      if (autoplayIntervalRef.current) clearInterval(autoplayIntervalRef.current);
+      if (autoplay && testimonialsLength > 1) {
+        autoplayIntervalRef.current = setInterval(() => {
+          if (!document.hidden) {
+            setActiveIndex((prev) => (prev + 1) % testimonialsLength);
+          }
+        }, 6000);
+      }
+    };
+
+    startAutoplay();
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (autoplayIntervalRef.current) clearInterval(autoplayIntervalRef.current);
+      } else {
+        startAutoplay();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
       if (autoplayIntervalRef.current) clearInterval(autoplayIntervalRef.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [autoplay, testimonialsLength]);
 
@@ -126,7 +155,7 @@ export const CircularTestimonials = ({
         opacity: 1,
         pointerEvents: "auto",
         transform: `translateX(0px) translateY(0px) scale(1) rotateY(0deg)`,
-        transition: "all 0.8s cubic-bezier(.32, .72, 0, 1)",
+        transition: "transform 0.8s cubic-bezier(.32, .72, 0, 1), opacity 0.8s cubic-bezier(.32, .72, 0, 1)",
       };
     }
     if (isLeft) {
@@ -135,7 +164,7 @@ export const CircularTestimonials = ({
         opacity: 0.7,
         pointerEvents: "auto",
         transform: `translateX(-${gap}px) translateY(-${maxStickUp}px) scale(0.85) rotateY(16deg)`,
-        transition: "all 0.8s cubic-bezier(.32, .72, 0, 1)",
+        transition: "transform 0.8s cubic-bezier(.32, .72, 0, 1), opacity 0.8s cubic-bezier(.32, .72, 0, 1)",
       };
     }
     if (isRight) {
@@ -144,21 +173,21 @@ export const CircularTestimonials = ({
         opacity: 0.7,
         pointerEvents: "auto",
         transform: `translateX(${gap}px) translateY(-${maxStickUp}px) scale(0.85) rotateY(-16deg)`,
-        transition: "all 0.8s cubic-bezier(.32, .72, 0, 1)",
+        transition: "transform 0.8s cubic-bezier(.32, .72, 0, 1), opacity 0.8s cubic-bezier(.32, .72, 0, 1)",
       };
     }
     return {
       zIndex: 1,
       opacity: 0,
       pointerEvents: "none",
-      transition: "all 0.8s cubic-bezier(.32, .72, 0, 1)",
+      transition: "transform 0.8s cubic-bezier(.32, .72, 0, 1), opacity 0.8s cubic-bezier(.32, .72, 0, 1)",
     };
   }
 
   const quoteVariants = {
-    initial: { opacity: 0, y: 15 },
+    initial: { opacity: 0, y: 12 },
     animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -15 },
+    exit: { opacity: 0, y: -12 },
   };
 
   return (
@@ -167,11 +196,16 @@ export const CircularTestimonials = ({
         {/* 3D Stacked Image Container */}
         <div className="lg:col-span-6 w-full">
           <div
-            className="relative w-full h-[22rem] sm:h-[26rem] md:h-[28rem] [perspective:1000px] flex items-center justify-center cursor-pointer"
+            className="relative w-full h-[20rem] sm:h-[26rem] md:h-[28rem] [perspective:1000px] flex items-center justify-center cursor-pointer"
             ref={imageContainerRef}
             onClick={() => onImageClick?.(activeIndex)}
           >
             {testimonials.map((testimonial, index) => {
+              const isVisibleItem =
+                index === activeIndex ||
+                (activeIndex - 1 + testimonialsLength) % testimonialsLength === index ||
+                (activeIndex + 1) % testimonialsLength === index;
+
               return (
                 <div
                   key={testimonial.src + index}
@@ -187,13 +221,13 @@ export const CircularTestimonials = ({
                   <img
                     src={testimonial.src}
                     alt={testimonial.name}
-                    loading={index === activeIndex ? "eager" : "lazy"}
+                    loading={isVisibleItem ? "eager" : "lazy"}
                     decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 will-change-transform"
                     style={{
                       objectPosition: testimonial.objectPosition || "center 20%",
                       transform: `scale(${testimonial.scale || 1}) rotate(${testimonial.rotation || 0}deg)`,
-                      transformOrigin: testimonial.objectPosition || "center 20%"
+                      transformOrigin: testimonial.objectPosition || "center 20%",
                     }}
                   />
                 </div>
@@ -240,33 +274,15 @@ export const CircularTestimonials = ({
                 {activeTestimonial.designation}
               </p>
 
+              {/* Smooth hardware-accelerated text reveal without costly per-word filter:blur */}
               <motion.p
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="font-light text-[#D8CDC0] text-base sm:text-lg leading-relaxed pt-2.5 border-t border-white/[0.08]"
                 style={{ color: colorTestimony }}
               >
-                {activeTestimonial.quote.split(" ").map((word, i) => (
-                  <motion.span
-                    key={i}
-                    initial={{
-                      filter: "blur(8px)",
-                      opacity: 0,
-                      y: 4,
-                    }}
-                    animate={{
-                      filter: "blur(0px)",
-                      opacity: 1,
-                      y: 0,
-                    }}
-                    transition={{
-                      duration: 0.2,
-                      ease: "easeInOut",
-                      delay: 0.02 * i,
-                    }}
-                    style={{ display: "inline-block" }}
-                  >
-                    {word}&nbsp;
-                  </motion.span>
-                ))}
+                {activeTestimonial.quote}
               </motion.p>
             </motion.div>
           </AnimatePresence>
